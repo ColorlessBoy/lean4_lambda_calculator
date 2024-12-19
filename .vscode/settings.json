@@ -1,0 +1,9 @@
+{
+  "git.ignoreLimitWarning": true,
+  "[plaintext]": {
+    "editor.wordWrap": "on"
+  },
+  "python.analysis.extraPaths": [
+    "./lean4_lambda_calculator"
+  ],
+}

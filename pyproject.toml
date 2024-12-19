@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "lean4-lambda-calculator"
+version = "0.1.0"
+description = ""
+authors = ["penglingwei <penglingwei@zju.edu.cn>"]
+readme = "README.md"
+packages = [{include = "lean4_lambda_calculator"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+huggingface-hub = "^0.26.5"
+python-dotenv = "^1.0.1"
+sympy = "^1.13.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
