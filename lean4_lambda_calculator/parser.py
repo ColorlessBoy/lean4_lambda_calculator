@@ -163,6 +163,7 @@ class ThmsPool:
             if len(const_def) > 0:
                 parsed_def = parse_expr(const_def)
                 self.def_pool[const] = parsed_def
+                next_exprs.append(parsed_def)
         for next_expr in next_exprs:
             self.update(next_expr)
 

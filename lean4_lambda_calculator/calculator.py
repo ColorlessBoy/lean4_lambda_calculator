@@ -127,11 +127,12 @@ def calc(expr: Expr, context: list[VarType], type_pool: dict[str, Expr], def_poo
     elif isinstance(expr, App):
         arg, arg_type = calc(expr.arg, context, type_pool, def_pool)
         if isinstance(expr.func, Const) and expr.func.label in def_pool:
-            func, func_type = calc(def_pool[expr.func.label], context, type_pool, def_pool)
+            func, _ = calc(def_pool[expr.func.label], context, type_pool, def_pool)
+            func_type, _ = calc(type_pool[expr.func.label], context, type_pool, def_pool)
         else:
             func, func_type = calc(expr.func, context, type_pool, def_pool)
         assert isinstance(func_type, Forall)
-        # BUG: 没有正确处理 sort 
+        # BUG: 没有正确处理 sort
         if not isinstance(arg_type, Sort) and not isinstance(func_type.var_type, Sort):
             assert (
                 arg_type == func_type.var_type
@@ -149,7 +150,8 @@ def calc(expr: Expr, context: list[VarType], type_pool: dict[str, Expr], def_poo
         return App(func, arg), unshifted_funcbody_type
     elif isinstance(expr, Proj):
         tuple_value, tuple_type = calc(expr.tuple_expr, context, type_pool, def_pool)
-        return Proj(expr.typename, expr.index, tuple_value), None
+        # BUG: 暂时无法获得Type
+        return Proj(expr.typename, expr.index, tuple_value), Sort('u')
     elif isinstance(expr, NatVar):
         return expr, Const("Nat")
     elif isinstance(expr, StrVar):
