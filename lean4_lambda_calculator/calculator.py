@@ -90,12 +90,14 @@ def get_level(expr: Expr, context: list[VarType], type_pool: dict[str, Expr]) ->
     return Level(-1)
 
 
-def calc(expr: Expr, context: list[VarType], type_pool: dict[str, Expr]) -> VarType:
+def calc(expr: Expr, context: list[VarType], type_pool: dict[str, Expr], def_pool: dict[str, Expr] = None) -> VarType:
+    if def_pool is None:
+        def_pool = {}
     if isinstance(expr, Sort):
         return expr, Sort(SuccLevel(expr.level))
     elif isinstance(expr, Const):
         assert expr.label in type_pool, f"Const {expr.label} is not defined."
-        expr_type = type_pool[expr.label]
+        expr_type, _ = calc(type_pool[expr.label], context, type_pool, def_pool)
         return expr, expr_type
     elif isinstance(expr, BoundVar):
         assert expr.index < len(
@@ -103,28 +105,31 @@ def calc(expr: Expr, context: list[VarType], type_pool: dict[str, Expr]) -> VarT
         ), f"Index {expr.index} out of bounds for context: {context}"
         return context[expr.index]
     elif isinstance(expr, Forall):
-        var_type, _ = calc(expr.var_type, context, type_pool)
+        var_type, _ = calc(expr.var_type, context, type_pool, def_pool)
         shifted_var_type = shift_expr(var_type)
         shifted_context = [(BoundVar(0), shifted_var_type)] + shift_context(context)
         shifted_body, shifted_body_type = calc(
-            expr.body, shifted_context, type_pool
+            expr.body, shifted_context, type_pool, def_pool
         )
         return_expr = Forall(var_type, shifted_body)
         return_type = Sort(MaxLevel(get_level(var_type, context, type_pool), get_level(shifted_body_type, shifted_context, type_pool)))
         return return_expr, return_type
     elif isinstance(expr, Lambda):
-        var_type, _ = calc(expr.var_type, context, type_pool)
+        var_type, _ = calc(expr.var_type, context, type_pool, def_pool)
         shifted_var_type = shift_expr(var_type)
         shifted_context = [(BoundVar(0), shifted_var_type)] + shift_context(context)
         shifted_body, shifted_body_type = calc(
-            expr.body, shifted_context, type_pool
+            expr.body, shifted_context, type_pool, def_pool
         )
         return_expr = Lambda(var_type, shifted_body)
         return_type = Forall(var_type, shifted_body_type)
         return return_expr, return_type
     elif isinstance(expr, App):
-        arg, arg_type = calc(expr.arg, context, type_pool)
-        func, func_type = calc(expr.func, context, type_pool)
+        arg, arg_type = calc(expr.arg, context, type_pool, def_pool)
+        if isinstance(expr.func, Const) and expr.func.label in def_pool:
+            func, func_type = calc(def_pool[expr.func.label], context, type_pool, def_pool)
+        else:
+            func, func_type = calc(expr.func, context, type_pool, def_pool)
         assert isinstance(func_type, Forall)
         # BUG: 没有正确处理 sort 
         if not isinstance(arg_type, Sort) and not isinstance(func_type.var_type, Sort):
@@ -132,30 +137,19 @@ def calc(expr: Expr, context: list[VarType], type_pool: dict[str, Expr]) -> VarT
                 arg_type == func_type.var_type
             ), f"Type mismatch: want\n  {func_type.var_type}\nget\n  {arg_type}\n\n"
         if isinstance(arg, Lambda):
-            unshifted_funcbody_type, _ = calc(unshift_expr(func_type.body, head=arg), context, type_pool)
+            unshifted_funcbody_type, _ = calc(unshift_expr(func_type.body, head=arg), context, type_pool, def_pool)
         else:
             unshifted_funcbody_type = unshift_expr(func_type.body, head=arg)
         if isinstance(func, Lambda):
             if isinstance(arg, Lambda):
-                unshifted_funcbody, _ = calc(unshift_expr(func.body, head=arg), context, type_pool)
+                unshifted_funcbody, _ = calc(unshift_expr(func.body, head=arg), context, type_pool, def_pool)
             else:
                 unshifted_funcbody = unshift_expr(func.body, head=arg)
             return unshifted_funcbody, unshifted_funcbody_type
         return App(func, arg), unshifted_funcbody_type
     elif isinstance(expr, Proj):
-        tuple_value, tuple_type = calc(expr.tuple_expr, context, type_pool)
-        # 确保 tuple_type 是一个 Forall 表示元组类型
-        assert isinstance(
-            tuple_type, Forall
-        ), f"Type of tuple {tuple_value} is not valid: {tuple_type}"
-        # 获取元组对应的第 index 个类型
-        current_type = tuple_type
-        for _ in range(expr.index):
-            assert isinstance(
-                current_type.body, Forall
-            ), f"Invalid tuple type at index {expr.index}: {current_type}"
-            current_type = current_type.body
-        return Proj(tuple_value, expr.index), current_type.var_type
+        tuple_value, tuple_type = calc(expr.tuple_expr, context, type_pool, def_pool)
+        return Proj(expr.typename, expr.index, tuple_value), None
     elif isinstance(expr, NatVar):
         return expr, Const("Nat")
     elif isinstance(expr, StrVar):

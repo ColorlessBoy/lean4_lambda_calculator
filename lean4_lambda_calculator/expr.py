@@ -92,17 +92,18 @@ class App(Expr):
         return f"(A {self.func} {self.arg})"
 
 class Proj(Expr):
-    def __init__(self, index: int, tuple_expr: Expr):
+    def __init__(self, typename: str, index: int, tuple_expr: Expr):
+        self.typename = typename
         self.index = index
         self.tuple_expr = tuple_expr
 
     def __eq__(self, value):
-        if isinstance(value, Proj) and self.index == value.index and self.tuple_expr== value.tuple_expr:
+        if isinstance(value, Proj) and self.typename == value.typename and self.index == value.index and self.tuple_expr== value.tuple_expr:
             return True
         return False
 
     def __repr__(self):
-        return f"(P {self.index} {self.tuple_expr})"
+        return f"(P {self.typename} {self.index} {self.tuple_expr})"
 
 class NatVar(Expr):
     def __init__(self, var: int):

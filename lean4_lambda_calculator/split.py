@@ -32,14 +32,14 @@ def split(target: Expr, proof: Expr, context: list[VarType], type_pool: dict[str
     return proof, []
 
 def dfs_split(target: Expr, proof: Expr, type_pool: dict[str, Expr]):
-    action, next_states  = split(target, proof, [], thmspool.pool)
+    action, next_states  = split(target, proof, [], thmspool.type_pool)
     print()
     print("STATES:\n", target)
     print("ACTION:\n", action)
     print("STATES:\n", next_states)
 
     for next_target, next_proof in next_states:
-        dfs_split(next_target, next_proof, thmspool.pool)
+        dfs_split(next_target, next_proof, thmspool.type_pool)
 
 # 测试代码
 if __name__ == "__main__":
@@ -55,4 +55,4 @@ if __name__ == "__main__":
     thmspool.update(parsed_target)
     thmspool.update(parsed_proof)
 
-    dfs_split(parsed_target, parsed_proof, thmspool.pool)
+    dfs_split(parsed_target, parsed_proof, thmspool.type_pool)

@@ -61,11 +61,12 @@ def parse(tokens: List[str]) -> Expr:
         index = int(tokens.pop(0))
         return BoundVar(index)
 
-    elif token == "Proj":
-        # Proj: (Proj index tuple_expr)
+    elif token == "P":
+        # Proj: (Proj typename index tuple_expr)
+        typename = tokens.pop(0)
         index = int(tokens.pop(0))
         tuple_expr = parse(tokens)
-        return Proj(index, tuple_expr)
+        return Proj(typename, index, tuple_expr)
     
     elif token == "NL":
         var = int(tokens.pop(0))
@@ -146,18 +147,22 @@ def load_thm(thmname: str):
 
 class ThmsPool:
     def __init__(self):
-        self.pool: dict[str, Expr] = {}
+        self.type_pool: dict[str, Expr] = {}
+        self.def_pool: dict[str, Expr] = {}
 
     def update(self, expr: Expr):
         consts = get_const(expr)
         next_exprs: list[Expr] = []
         for const in consts:
-            if const in self.pool:
+            if const in self.type_pool:
                 continue
-            _, const_type, _ = load_thm(const)
+            _, const_type, const_def = load_thm(const)
             parsed_type = parse_expr(const_type)
-            self.pool[const] = parsed_type
+            self.type_pool[const] = parsed_type
             next_exprs.append(parsed_type)
+            if len(const_def) > 0:
+                parsed_def = parse_expr(const_def)
+                self.def_pool[const] = parsed_def
         for next_expr in next_exprs:
             self.update(next_expr)
 
@@ -176,10 +181,11 @@ if __name__ == "__main__":
     thmspool.update(parsed_thmtype)
     thmspool.update(parsed_thmproof)
 
-    _, calc_thmproof = calc(parsed_thmproof, [], thmspool.pool)
+    calc_thmproof, calc_thmtype = calc(parsed_thmproof, [], thmspool.type_pool, thmspool.def_pool)
 
-    print(f"{thmname} proof type:\n  {calc_thmproof}")
+    print(f"{thmname} calc proof:\n  {calc_thmproof}")
+    print(f"{thmname} calc type:\n  {calc_thmtype}")
 
-    print("Check:", parsed_thmtype == calc_thmproof)
+    print("Check:", parsed_thmtype == calc_thmtype)
 
 
