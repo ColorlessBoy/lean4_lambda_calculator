@@ -6,7 +6,7 @@ License: MIT
 """
 
 from level import Level, SuccLevel, MaxLevel, PreLevel
-from expr import Expr, BoundVar, Const, Lambda, Forall, App, Sort, Proj
+from expr import Expr, BoundVar, Const, Lambda, Forall, App, Sort, Proj, NatVar, StrVar
 
 VarType = tuple[Expr, Expr]
 
@@ -156,6 +156,10 @@ def calc(expr: Expr, context: list[VarType], type_pool: dict[str, Expr]) -> VarT
             ), f"Invalid tuple type at index {expr.index}: {current_type}"
             current_type = current_type.body
         return Proj(tuple_value, expr.index), current_type.var_type
+    elif isinstance(expr, NatVar):
+        return expr, Const("Nat")
+    elif isinstance(expr, StrVar):
+        return expr, Const("String")
     else:
         raise ValueError("Unknown expr", expr)
 

@@ -103,3 +103,28 @@ class Proj(Expr):
 
     def __repr__(self):
         return f"(P {self.index} {self.tuple_expr})"
+
+class NatVar(Expr):
+    def __init__(self, var: int):
+        self.var = var
+
+    def __eq__(self, value):
+        if isinstance(value, NatVar) and self.var == value.var:
+            return True
+        return False
+
+    def __repr__(self):
+        return str(self.var)
+
+
+class StrVar(Expr):
+    def __init__(self, var: str):
+        self.var = var
+
+    def __eq__(self, value):
+        if isinstance(value, StrVar) and self.var == value.var:
+            return True
+        return False
+
+    def __repr__(self):
+        return self.var

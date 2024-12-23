@@ -1,4 +1,4 @@
-from expr import Expr, Const, App, Lambda, Forall, Sort, BoundVar, Proj
+from expr import Expr, Const, App, Lambda, Forall, Sort, BoundVar, Proj, NatVar, StrVar
 from level import Level, SuccLevel, MaxLevel
 import re
 from typing import List
@@ -66,6 +66,14 @@ def parse(tokens: List[str]) -> Expr:
         index = int(tokens.pop(0))
         tuple_expr = parse(tokens)
         return Proj(index, tuple_expr)
+    
+    elif token == "NL":
+        var = int(tokens.pop(0))
+        return NatVar(var)
+    
+    elif token == "SL":
+        var = tokens.pop(0).strip('"')
+        return StrVar(var)
 
     else:
         raise ValueError(f"Unknown token: {token}")
@@ -116,6 +124,12 @@ def get_const(expr: Expr) -> list[str]:
 
     elif isinstance(expr, Proj):
         return get_const(expr.tuple_expr)
+    
+    elif isinstance(expr, NatVar):
+        return ["Nat"]
+    
+    elif isinstance(expr, StrVar):
+        return ["String"]
 
     else:
         raise ValueError(f"Unknown expr: {expr}")
@@ -150,7 +164,8 @@ class ThmsPool:
 # 测试代码
 if __name__ == "__main__":
     # 测试解析 mul_right_cancel_iff
-    thmname = "mul_right_cancel_iff"
+    # thmname = "mul_right_cancel_iff"
+    thmname = "PosMulReflectLE"
     _, thmtype, thmproof = load_thm(thmname)
     parsed_thmtype = parse_expr(thmtype)
     print(f"{thmname}:\n  {parsed_thmtype}")
