@@ -160,7 +160,7 @@ class ThmsPool:
             parsed_type = parse_expr(const_type)
             self.type_pool[const] = parsed_type
             next_exprs.append(parsed_type)
-            if len(const_def) > 0:
+            if len(const_def) > 0 and '(P' not in const_def:
                 parsed_def = parse_expr(const_def)
                 self.def_pool[const] = parsed_def
                 next_exprs.append(parsed_def)
