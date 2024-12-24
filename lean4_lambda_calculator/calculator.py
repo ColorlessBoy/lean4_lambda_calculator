@@ -98,6 +98,9 @@ def calc(expr: Expr, context: list[VarType], type_pool: dict[str, Expr], def_poo
     elif isinstance(expr, Const):
         assert expr.label in type_pool, f"Const {expr.label} is not defined."
         expr_type, _ = calc(type_pool[expr.label], context, type_pool, def_pool)
+        if expr.label in def_pool:
+            expr_def, expr_def_type = calc(def_pool[expr.label], context, type_pool, def_pool)
+            return expr_def, expr_def_type
         return expr, expr_type
     elif isinstance(expr, BoundVar):
         assert expr.index < len(
@@ -126,11 +129,7 @@ def calc(expr: Expr, context: list[VarType], type_pool: dict[str, Expr], def_poo
         return return_expr, return_type
     elif isinstance(expr, App):
         arg, arg_type = calc(expr.arg, context, type_pool, def_pool)
-        if isinstance(expr.func, Const) and expr.func.label in def_pool:
-            func, _ = calc(def_pool[expr.func.label], context, type_pool, def_pool)
-            func_type, _ = calc(type_pool[expr.func.label], context, type_pool, def_pool)
-        else:
-            func, func_type = calc(expr.func, context, type_pool, def_pool)
+        func, func_type = calc(expr.func, context, type_pool, def_pool)
         assert isinstance(func_type, Forall)
         # BUG: 没有正确处理 sort
         if not isinstance(arg_type, Sort) and not isinstance(func_type.var_type, Sort):
