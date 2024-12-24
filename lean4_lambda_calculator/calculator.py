@@ -98,9 +98,11 @@ def calc(expr: Expr, context: list[VarType], type_pool: dict[str, Expr], def_poo
     elif isinstance(expr, Const):
         assert expr.label in type_pool, f"Const {expr.label} is not defined."
         expr_type, _ = calc(type_pool[expr.label], context, type_pool, def_pool)
+        """
         if expr.label in def_pool:
             expr_def, expr_def_type = calc(def_pool[expr.label], context, type_pool, def_pool)
             return expr_def, expr_def_type
+        """
         return expr, expr_type
     elif isinstance(expr, BoundVar):
         assert expr.index < len(

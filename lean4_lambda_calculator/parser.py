@@ -169,9 +169,8 @@ class ThmsPool:
 
 # 测试代码
 if __name__ == "__main__":
-    # 测试解析 mul_right_cancel_iff
-    # thmname = "mul_right_cancel_iff"
-    thmname = "PosMulReflectLE"
+    thmname = "mul_right_cancel_iff"
+    # thmname = "PosMulReflectLE"
     _, thmtype, thmproof = load_thm(thmname)
     parsed_thmtype = parse_expr(thmtype)
     print(f"{thmname}:\n  {parsed_thmtype}")
