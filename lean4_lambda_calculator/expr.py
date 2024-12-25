@@ -8,7 +8,8 @@ License: MIT
 from level import Level
 
 class Expr:
-    pass
+    def __hash__(self):
+        return hash(repr(self))  # 默认以 __repr__ 为基础计算哈希
 
 class Sort(Expr):
     def __init__(self, level: Level | int | str):
@@ -18,8 +19,9 @@ class Sort(Expr):
             self.level: Level = Level(level)
     
     def __eq__(self, value):
-        # BUG: 没有正确处理 sort 
-        return True
+        if isinstance(value, Sort):
+            return self.level == value.level
+        return False
 
     def __repr__(self) -> str:
         return f"(S {self.level})"

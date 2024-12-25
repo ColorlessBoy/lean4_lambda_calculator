@@ -19,7 +19,6 @@ def shift_context(context: list[VarType]):
         new_context.append((shifted_expr, shifted_type))
     return new_context
 
-
 def shift_expr(expr: Expr, offset=0):
     if isinstance(expr, BoundVar):
         if expr.index >= offset:
@@ -40,7 +39,6 @@ def shift_expr(expr: Expr, offset=0):
         shifted_arg = shift_expr(expr.arg, offset=offset)
         return App(shifted_func, shifted_arg)
     return expr
-
 
 def unshift_expr(expr: Expr, offset=0, head=None):
     if isinstance(expr, BoundVar):
@@ -65,41 +63,55 @@ def unshift_expr(expr: Expr, offset=0, head=None):
         return App(shifted_func, shifted_arg)
     return expr
 
+# 全局缓存
+level_cache = {}
 
 def get_level(expr: Expr, context: list[VarType], type_pool: dict[str, Expr]) -> Level:
     if context is None:
         context = []
+    # 生成缓存键
+    cache_key = str(expr) + str(context)
+    if cache_key in level_cache:
+        return level_cache[cache_key]
+
+    # 原始逻辑
     if isinstance(expr, Sort):
-        return expr.level
+        result = expr.level
     elif isinstance(expr, Const):
         assert expr.label in type_pool, f"Const {expr.label} is not defined."
         expr_type = type_pool[expr.label]
-        return PreLevel(get_level(expr_type, context, type_pool))
+        result = PreLevel(get_level(expr_type, context, type_pool))
     elif isinstance(expr, BoundVar):
         next_expr, next_expr_type = context[expr.index]
         if isinstance(next_expr, BoundVar):
             type_level = get_level(next_expr_type, context, type_pool)
-            return PreLevel(type_level)
-        return get_level(next_expr, context, type_pool)
+            result = PreLevel(type_level)
+        else:
+            result = get_level(next_expr, context, type_pool)
     elif isinstance(expr, Forall):
         left = get_level(expr.var_type, context, type_pool)
         right = get_level(
             expr.body, [(BoundVar(0), shift_expr(expr.var_type))] + shift_context(context), type_pool
         )
-        return MaxLevel(left, right)
+        result = MaxLevel(left, right)
     elif isinstance(expr, Lambda):
         lambda_var_type = expr.var_type
         lambda_var_level = get_level(lambda_var_type, context, type_pool)
         lambda_new_items = [(BoundVar(0), shift_expr(lambda_var_type))] + shift_context(context)
         lambda_body_level = get_level(expr.body, lambda_new_items, type_pool)
-        return PreLevel(MaxLevel(lambda_var_level, SuccLevel(lambda_body_level)))
+        result = PreLevel(MaxLevel(lambda_var_level, SuccLevel(lambda_body_level)))
     elif isinstance(expr, App):
         _, func_type = calc(expr.func, context, type_pool)
         if not isinstance(func_type, Forall):
             raise ValueError('Function application to a non-function')
         func_context = [(BoundVar(0), shift_expr(func_type.var_type))] + shift_context(context)
-        return PreLevel(get_level(func_type.body, func_context, type_pool))
-    return Level(-1)
+        result = PreLevel(get_level(func_type.body, func_context, type_pool))
+    else:
+        result = Level(-1)
+
+    # 存入缓存
+    level_cache[cache_key] = result
+    return result
 
 def calc(expr: Expr, context: list[VarType], type_pool: dict[str, Expr], def_pool: dict[str, Expr] = None) -> VarType:
     if def_pool is None:
@@ -143,7 +155,7 @@ def calc(expr: Expr, context: list[VarType], type_pool: dict[str, Expr], def_poo
         func, func_type = calc(expr.func, context, type_pool, def_pool)
         assert isinstance(func_type, Forall)
         # BUG: 没有正确处理 sort
-        if not isinstance(arg_type, Sort) or not isinstance(func_type.var_type, Sort):
+        if not isinstance(arg_type, Sort) and not isinstance(func_type.var_type, Sort):
             assert (
                 arg_type == func_type.var_type
             ), f"Type mismatch: want\n  {func_type.var_type}\nget\n  {arg_type}\n\n"
