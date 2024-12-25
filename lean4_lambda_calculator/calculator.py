@@ -84,11 +84,22 @@ def get_level(expr: Expr, context: list[VarType], type_pool: dict[str, Expr]) ->
     elif isinstance(expr, Forall):
         left = get_level(expr.var_type, context, type_pool)
         right = get_level(
-            expr.body, [(BoundVar(0), expr.var_type)] + shift_context(context), type_pool
+            expr.body, [(BoundVar(0), shift_expr(expr.var_type))] + shift_context(context), type_pool
         )
         return MaxLevel(left, right)
+    elif isinstance(expr, Lambda):
+        lambda_var_type = expr.var_type
+        lambda_var_level = get_level(lambda_var_type, context, type_pool)
+        lambda_new_items = [(BoundVar(0), shift_expr(lambda_var_type))] + shift_context(context)
+        lambda_body_level = get_level(expr.body, lambda_new_items, type_pool)
+        return PreLevel(MaxLevel(lambda_var_level, SuccLevel(lambda_body_level)))
+    elif isinstance(expr, App):
+        _, func_type = calc(expr.func, context, type_pool)
+        if not isinstance(func_type, Forall):
+            raise ValueError('Function application to a non-function')
+        func_context = [(BoundVar(0), shift_expr(func_type.var_type))] + shift_context(context)
+        return PreLevel(get_level(func_type.body, func_context, type_pool))
     return Level(-1)
-
 
 def calc(expr: Expr, context: list[VarType], type_pool: dict[str, Expr], def_pool: dict[str, Expr] = None) -> VarType:
     if def_pool is None:
@@ -98,11 +109,9 @@ def calc(expr: Expr, context: list[VarType], type_pool: dict[str, Expr], def_poo
     elif isinstance(expr, Const):
         assert expr.label in type_pool, f"Const {expr.label} is not defined."
         expr_type, _ = calc(type_pool[expr.label], context, type_pool, def_pool)
-        """
         if expr.label in def_pool:
             expr_def, expr_def_type = calc(def_pool[expr.label], context, type_pool, def_pool)
             return expr_def, expr_def_type
-        """
         return expr, expr_type
     elif isinstance(expr, BoundVar):
         assert expr.index < len(
@@ -138,15 +147,11 @@ def calc(expr: Expr, context: list[VarType], type_pool: dict[str, Expr], def_poo
             assert (
                 arg_type == func_type.var_type
             ), f"Type mismatch: want\n  {func_type.var_type}\nget\n  {arg_type}\n\n"
-        if isinstance(arg, Lambda):
-            unshifted_funcbody_type, _ = calc(unshift_expr(func_type.body, head=arg), context, type_pool, def_pool)
-        else:
-            unshifted_funcbody_type = unshift_expr(func_type.body, head=arg)
+        tmp = unshift_expr(func_type.body, head=arg)
+        unshifted_funcbody_type, _ = calc(tmp, context, type_pool, def_pool)
         if isinstance(func, Lambda):
-            if isinstance(arg, Lambda):
-                unshifted_funcbody, _ = calc(unshift_expr(func.body, head=arg), context, type_pool, def_pool)
-            else:
-                unshifted_funcbody = unshift_expr(func.body, head=arg)
+            tmp = unshift_expr(func.body, head=arg)
+            unshifted_funcbody, _ = calc(tmp, context, type_pool, def_pool)
             return unshifted_funcbody, unshifted_funcbody_type
         return App(func, arg), unshifted_funcbody_type
     elif isinstance(expr, Proj):

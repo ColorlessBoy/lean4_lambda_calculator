@@ -3,7 +3,7 @@ from level import Level, SuccLevel, MaxLevel
 import re
 from typing import List
 import os
-from calculator import calc
+from calculator import calc, get_level
 
 
 def tokenize(expr: str) -> List[str]:
@@ -153,6 +153,7 @@ class ThmsPool:
     def update(self, expr: Expr):
         consts = get_const(expr)
         next_exprs: list[Expr] = []
+        defs: list[tuple[str, Expr]] = []
         for const in consts:
             if const in self.type_pool:
                 continue
@@ -162,16 +163,26 @@ class ThmsPool:
             next_exprs.append(parsed_type)
             if len(const_def) > 0 and '(P' not in const_def:
                 parsed_def = parse_expr(const_def)
-                self.def_pool[const] = parsed_def
                 next_exprs.append(parsed_def)
+                defs.append((const, parsed_def))
         for next_expr in next_exprs:
             self.update(next_expr)
+        
+        for const, parsed_def in defs:
+            try:
+                level = get_level(parsed_def, [], self.type_pool)
+                if level.symbol.is_nonnegative:
+                    self.def_pool[const] = parsed_def
+            except Exception as e:
+                print(f"Error: {const} {parsed_def}")
+                print(e)
 
 # 测试代码
 if __name__ == "__main__":
     # thmname = "mul_right_cancel_iff"
     # thmname = "PosMulReflectLE"
     thmname = "mul_le_mul_left"
+    # thmname = "Zero.toOfNat0"
     _, thmtype, thmproof = load_thm(thmname)
     parsed_thmtype = parse_expr(thmtype)
     print(f"{thmname}:\n  {parsed_thmtype}")
