@@ -155,7 +155,7 @@ def calc(expr: Expr, context: list[VarType], type_pool: dict[str, Expr], def_poo
         func, func_type = calc(expr.func, context, type_pool, def_pool)
         assert isinstance(func_type, Forall)
         # BUG: 没有正确处理 sort
-        if not isinstance(arg_type, Sort) and not isinstance(func_type.var_type, Sort):
+        if not isinstance(arg_type, Sort) or not isinstance(func_type.var_type, Sort) and not (isinstance(func_type.var_type, App) and isinstance(func_type.var_type.func, Const) and func_type.var_type.func.label == 'outParam'):
             assert (
                 arg_type == func_type.var_type
             ), f"Type mismatch: want\n  {func_type.var_type}\nget\n  {arg_type}\n\n"
