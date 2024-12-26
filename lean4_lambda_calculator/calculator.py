@@ -138,7 +138,7 @@ def calc(expr: Expr, context: list[VarType], type_pool: dict[str, Expr], def_poo
             expr.body, shifted_context, type_pool, def_pool
         )
         return_expr = Forall(var_type, shifted_body)
-        return_type = Sort(MaxLevel(get_level(var_type, context, type_pool), get_level(shifted_body_type, shifted_context, type_pool)))
+        return_type = Sort(SuccLevel(MaxLevel(get_level(var_type, context, type_pool), get_level(shifted_body, shifted_context, type_pool))))
         return return_expr, return_type
     elif isinstance(expr, Lambda):
         var_type, _ = calc(expr.var_type, context, type_pool, def_pool)

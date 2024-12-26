@@ -180,9 +180,9 @@ class ThmsPool:
 # 测试代码
 if __name__ == "__main__":
     # thmname = "mul_right_cancel_iff"
-    # thmname = "PosMulReflectLE"
-    thmname = "mul_le_mul_left"
-    # thmname = "Zero.toOfNat0"
+    thmname = "PosMulReflectLE"
+    # thmname = "mul_le_mul_left"
+    thmname = "Zero.toOfNat0"
     _, thmtype, thmproof = load_thm(thmname)
     parsed_thmtype = parse_expr(thmtype)
     print(f"{thmname}:\n  {parsed_thmtype}")
@@ -201,3 +201,22 @@ if __name__ == "__main__":
     print("Check:", parsed_thmtype == calc_thmtype)
 
 
+    parsed_proof1 = parse_expr("(L (S u+1) (F #0 (S 0)))")
+    calc_proof1, calc_type1 = calc(parsed_proof1, [], {}, {})
+    print("parsed_proof1:", parsed_proof1)
+    print("calc_proof1:", calc_proof1)
+    print("calc_type1:", calc_type1)
+
+    parsed_proof2 = parse_expr("(L (S u+1) (L (F #0 (S 0)) #0))")
+    calc_proof2, calc_type2 = calc(parsed_proof2, [], {}, {})
+    print("parsed_proof2:", parsed_proof2)
+    print("calc_proof2:", calc_proof2)
+    print("calc_type2:", calc_type2)
+
+    parsed_proof3 = parse_expr("(F (S u+1) (F (F #0 (S 0)) (A (C Set) #1)))")
+    calc_proof3, calc_type3 = calc(parsed_proof3, [], {"Set": calc_type1}, {"Set": parsed_proof1})
+    print("parsed_proof3:", parsed_proof3)
+    print("calc_proof3:", calc_proof3)
+    print("calc_type3:", calc_type3)
+
+    print("Check:", calc_type2 == calc_proof3)
