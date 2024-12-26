@@ -96,3 +96,7 @@ if __name__ == "__main__":
     u1 = SuccLevel(Level('u_1'))
     u2 = SuccLevel(Level('u_2'))
     print(u1.match(u2))
+
+    # 测试 MaxLevel
+    l5 = MaxLevel(Level(0), SuccLevel(Level("n2")))
+    print("l5:", l5)
