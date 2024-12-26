@@ -3,7 +3,7 @@ from level import Level, SuccLevel, MaxLevel
 import re
 from typing import List
 import os
-from calculator import calc, get_level
+from calculator import calc
 
 
 def tokenize(expr: str) -> List[str]:
@@ -144,6 +144,7 @@ def load_thm(thmname: str):
             lines.append('')
     return lines
 
+Prop = str(Sort(0))
 
 class ThmsPool:
     def __init__(self):
@@ -161,26 +162,22 @@ class ThmsPool:
             parsed_type = parse_expr(const_type)
             self.type_pool[const] = parsed_type
             next_exprs.append(parsed_type)
-            if len(const_def) > 0 and '(P' not in const_def and 'outParam' not in const_def:
+            if str(const_type) != Prop and len(const_def) > 0 and '(P' not in const_def:
                 parsed_def = parse_expr(const_def)
                 next_exprs.append(parsed_def)
                 defs.append((const, parsed_def))
+                self.def_pool[const] = parsed_def
         for next_expr in next_exprs:
             self.update(next_expr)
+    
+    def simplifyDef(self):
+        for const, def_expr in self.def_pool.items():
+            self.def_pool[const] = calc(def_expr, [], self.type_pool, self.def_pool)[0]
         
-        for const, parsed_def in defs:
-            try:
-                level = get_level(parsed_def, [], self.type_pool)
-                if level.symbol.is_nonnegative:
-                    self.def_pool[const] = parsed_def
-            except Exception as e:
-                print(f"Error: {const} {parsed_def}")
-                print(e)
-
 # 测试代码
 if __name__ == "__main__":
     # thmname = "mul_right_cancel_iff"
-    thmname = "PosMulReflectLE"
+    # thmname = "PosMulReflectLE"
     # thmname = "mul_le_mul_left"
     thmname = "Zero.toOfNat0"
     _, thmtype, thmproof = load_thm(thmname)
@@ -192,6 +189,7 @@ if __name__ == "__main__":
     thmspool = ThmsPool()
     thmspool.update(parsed_thmtype)
     thmspool.update(parsed_thmproof)
+    thmspool.simplifyDef()
 
     calc_thmproof, calc_thmtype = calc(parsed_thmproof, [], thmspool.type_pool, thmspool.def_pool)
 

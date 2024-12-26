@@ -63,17 +63,9 @@ def unshift_expr(expr: Expr, offset=0, head=None):
         return App(shifted_func, shifted_arg)
     return expr
 
-# 全局缓存
-level_cache = {}
-
 def get_level(expr: Expr, context: list[VarType], type_pool: dict[str, Expr]) -> Level:
     if context is None:
         context = []
-    # 生成缓存键
-    cache_key = str(expr) + str(context)
-    if cache_key in level_cache:
-        return level_cache[cache_key]
-
     # 原始逻辑
     if isinstance(expr, Sort):
         result = expr.level
@@ -108,9 +100,6 @@ def get_level(expr: Expr, context: list[VarType], type_pool: dict[str, Expr]) ->
         result = PreLevel(get_level(func_type.body, func_context, type_pool))
     else:
         result = Level(-1)
-
-    # 存入缓存
-    level_cache[cache_key] = result
     return result
 
 def calc(expr: Expr, context: list[VarType], type_pool: dict[str, Expr], def_pool: dict[str, Expr] = None) -> VarType:
