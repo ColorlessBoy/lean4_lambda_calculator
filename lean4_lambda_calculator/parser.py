@@ -9,7 +9,7 @@ from calculator import calc
 def tokenize(expr: str) -> List[str]:
     """将输入字符串拆分为标记列表"""
     # 使用正则表达式匹配括号、标识符和数字
-    pattern = r"[()]|[A-Za-z0-9_.\u00A0-\uFFFF]+|\S"
+    pattern = r"[()+:]|->|=>|[A-Za-z0-9_.\u00A0-\uFFFF]+|\S"
     tokens = re.findall(pattern, expr)
     return tokens
 
