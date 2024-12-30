@@ -3,18 +3,17 @@
   "[plaintext]": {
     "editor.wordWrap": "on"
   },
-  "python.testing.unittestEnabled": true,
-  "python.testing.pytestEnabled": false,
-  "python.testing.unittestArgs": [
-    "-v",
-    "-s",
-    "./tests",
-    "-p",
-    "*_test.py"
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestEnabled": true,
+  "python.testing.pytestPath": "pytest",
+  "python.testing.pytestArgs": [
+    "--maxfail=1",
+    "--disable-warnings",
+    "tests"  // 只检测 tests 文件夹下的文件
   ],
   "python.testing.autoTestDiscoverOnSaveEnabled": true,
   "python.analysis.extraPaths": [
-    "./lean4_lambda_",
     "./lean4_lambda_calculator"
-  ]
+  ],
+  "python.envFile": "${workspaceFolder}/.env"
 }

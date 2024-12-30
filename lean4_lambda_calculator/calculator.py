@@ -6,148 +6,57 @@ License: MIT
 """
 
 from level import Level, SuccLevel, MaxLevel, PreLevel
-from expr import Expr, BoundVar, Const, Lambda, Forall, App, Sort, Proj, NatLiteral, StrLiteral
-
-VarType = tuple[Expr, Expr]
+from expr import Expr, BoundVar, Const, Lambda, Forall, App, Sort, Arg
 
 
-def shift_context(context: list[VarType]):
-    new_context = []
-    for expr, type in context:
-        shifted_expr = shift_expr(expr)
-        shifted_type = shift_expr(type)
-        new_context.append((shifted_expr, shifted_type))
-    return new_context
-
-def shift_expr(expr: Expr, offset=0):
-    if isinstance(expr, BoundVar):
-        if expr.index >= offset:
-            return BoundVar(expr.index + 1)
-        return expr
-    elif isinstance(expr, Const):
-        return expr
-    elif isinstance(expr, Lambda):
-        shifted_var_type = shift_expr(expr.var_type, offset=offset)
-        shifted_body = shift_expr(expr.body, offset=offset + 1)
-        return Lambda(shifted_var_type, shifted_body)
-    elif isinstance(expr, Forall):
-        shifted_var_type = shift_expr(expr.var_type, offset=offset)
-        shifted_body = shift_expr(expr.body, offset=offset + 1)
-        return Forall(shifted_var_type, shifted_body)
-    elif isinstance(expr, App):
-        shifted_func = shift_expr(expr.func, offset=offset)
-        shifted_arg = shift_expr(expr.arg, offset=offset)
-        return App(shifted_func, shifted_arg)
-    return expr
-
-def unshift_expr(expr: Expr, offset=0, head=None):
-    if isinstance(expr, BoundVar):
-        if expr.index >= offset:
-            if expr.index == offset:
-                return head
-            return BoundVar(expr.index - 1)
-        return expr
-    elif isinstance(expr, Const):
-        return expr
-    elif isinstance(expr, Lambda):
-        shifted_var_type = unshift_expr(expr.var_type, offset=offset, head=head)
-        shifted_body = unshift_expr(expr.body, offset=offset + 1, head=shift_expr(head))
-        return Lambda(shifted_var_type, shifted_body)
-    elif isinstance(expr, Forall):
-        shifted_var_type = unshift_expr(expr.var_type, offset=offset, head=head)
-        shifted_body = unshift_expr(expr.body, offset=offset + 1, head=shift_expr(head))
-        return Forall(shifted_var_type, shifted_body)
-    elif isinstance(expr, App):
-        shifted_func = unshift_expr(expr.func, offset=offset, head=head)
-        shifted_arg = unshift_expr(expr.arg, offset=offset, head=head)
-        return App(shifted_func, shifted_arg)
-    return expr
-
-def get_level(expr: Expr, context: list[VarType], type_pool: dict[str, Expr]) -> Level:
-    if context is None:
-        context = []
-    # 原始逻辑
-    if isinstance(expr, Sort):
-        result = expr.level
-    elif isinstance(expr, Const):
-        assert expr.label in type_pool, f"Const {expr.label} is not defined."
-        expr_type = type_pool[expr.label]
-        result = PreLevel(get_level(expr_type, context, type_pool))
-    elif isinstance(expr, BoundVar):
-        next_expr, next_expr_type = context[expr.index]
-        if isinstance(next_expr, BoundVar):
-            type_level = get_level(next_expr_type, context, type_pool)
-            result = PreLevel(type_level)
-        else:
-            result = get_level(next_expr, context, type_pool)
-    elif isinstance(expr, Forall):
-        left = get_level(expr.var_type, context, type_pool)
-        right = get_level(
-            expr.body, [(BoundVar(0), shift_expr(expr.var_type))] + shift_context(context), type_pool
-        )
-        result = MaxLevel(left, right)
-    elif isinstance(expr, Lambda):
-        lambda_var_type = expr.var_type
-        lambda_var_level = get_level(lambda_var_type, context, type_pool)
-        lambda_new_items = [(BoundVar(0), shift_expr(lambda_var_type))] + shift_context(context)
-        lambda_body_level = get_level(expr.body, lambda_new_items, type_pool)
-        result = PreLevel(MaxLevel(lambda_var_level, SuccLevel(lambda_body_level)))
-    elif isinstance(expr, App):
-        _, func_type = calc(expr.func, context, type_pool)
-        if not isinstance(func_type, Forall):
-            raise ValueError('Function application to a non-function')
-        func_context = [(BoundVar(0), shift_expr(func_type.var_type))] + shift_context(context)
-        result = PreLevel(get_level(func_type.body, func_context, type_pool))
-    else:
-        result = Level(-1)
-    return result
-
-def calc(expr: Expr, context: list[VarType], type_pool: dict[str, Expr], def_pool: dict[str, Expr] = None) -> VarType:
+# 求解表达式的类型
+# 返回化简后的表达式和类型
+def calc(expr: Expr, context: list[Arg], type_pool: dict[str, Expr] = None, def_pool: dict[str, Expr] = None) -> tuple[Expr, Expr]:
+    if type_pool is None:
+        type_pool = {}
     if def_pool is None:
         def_pool = {}
     if isinstance(expr, Sort):
         return expr, Sort(SuccLevel(expr.level))
     elif isinstance(expr, Const):
         assert expr.label in type_pool, f"Const {expr.label} is not defined."
-        expr_type, _ = calc(type_pool[expr.label], context, type_pool, def_pool)
-        if expr.label in def_pool:
-            expr_def, expr_def_type = calc(def_pool[expr.label], context, type_pool, def_pool)
-            return expr_def, expr_def_type
-        return expr, expr_type
+        # 常量的类型的定义不需要考虑上下文化简, 直接返回定义的类型 
+        return expr, type_pool[expr.label] 
+    elif isinstance(expr, Arg):
+        arg_type, _ = calc(expr.type, context, type_pool, def_pool)
+        return Arg(arg_type, expr.name), arg_type
     elif isinstance(expr, BoundVar):
         assert expr.index < len(
             context
         ), f"Index {expr.index} out of bounds for context: {context}"
-        return context[expr.index]
+        return expr, shift_expr(context[expr.index], offset=0, step=expr.index)
     elif isinstance(expr, Forall):
+        assert isinstance(expr.var_type, Arg), f"Type of variable in Forall should be Arg, but got {expr.var_type}"
         var_type, _ = calc(expr.var_type, context, type_pool, def_pool)
-        shifted_var_type = shift_expr(var_type)
-        shifted_context = [(BoundVar(0), shifted_var_type)] + shift_context(context)
-        shifted_body, shifted_body_type = calc(
-            expr.body, shifted_context, type_pool, def_pool
+        assert isinstance(var_type, Arg), f"Type of variable in Forall should be Arg, but got {var_type}"
+        new_context = [var_type] + context
+        new_body, body_type = calc(
+            expr.body, new_context, type_pool, def_pool
         )
-        return_expr = Forall(var_type, shifted_body)
-        return_type = Sort(SuccLevel(MaxLevel(get_level(var_type, context, type_pool), get_level(shifted_body, shifted_context, type_pool))))
+        return_expr = Forall(var_type, new_body)
+        return_type = Sort(SuccLevel(MaxLevel(get_level(var_type, context, type_pool), get_level(new_body, new_context, type_pool))))
         return return_expr, return_type
     elif isinstance(expr, Lambda):
+        assert isinstance(expr.var_type, Arg), f"Type of variable in Lambda should be Arg, but got {expr.var_type}"
         var_type, _ = calc(expr.var_type, context, type_pool, def_pool)
-        shifted_var_type = shift_expr(var_type)
-        shifted_context = [(BoundVar(0), shifted_var_type)] + shift_context(context)
-        shifted_body, shifted_body_type = calc(
-            expr.body, shifted_context, type_pool, def_pool
+        assert isinstance(var_type, Arg), f"Type of variable in Forall should be Arg, but got {var_type}"
+        new_context = [var_type] + context
+        new_body, body_type = calc(
+            expr.body, new_context, type_pool, def_pool
         )
-        return_expr = Lambda(var_type, shifted_body)
-        return_type = Forall(var_type, shifted_body_type)
+        return_expr = Lambda(var_type, new_body)
+        return_type = Forall(var_type, body_type)
         return return_expr, return_type
     elif isinstance(expr, App):
         arg, arg_type = calc(expr.arg, context, type_pool, def_pool)
         func, func_type = calc(expr.func, context, type_pool, def_pool)
         assert isinstance(func_type, Forall)
-        # BUG: 没有正确处理 sort
-        if not isinstance(arg_type, Sort) or not isinstance(func_type.var_type, Sort) and not (isinstance(func_type.var_type, App) and isinstance(func_type.var_type.func, Const) and func_type.var_type.func.label == 'outParam'):
-            assert (
-                arg_type == func_type.var_type
-            ), f"Type mismatch: want\n  {func_type.var_type}\nget\n  {arg_type}\n\n"
+        assert DefEq(func_type.var_type, arg_type, context, type_pool, def_pool), f"Type mismatch: want\n  {func_type.var_type}\nget\n  {arg_type}\n\n"
         tmp = unshift_expr(func_type.body, head=arg)
         unshifted_funcbody_type, _ = calc(tmp, context, type_pool, def_pool)
         if isinstance(func, Lambda):
@@ -155,16 +64,115 @@ def calc(expr: Expr, context: list[VarType], type_pool: dict[str, Expr], def_poo
             unshifted_funcbody, _ = calc(tmp, context, type_pool, def_pool)
             return unshifted_funcbody, unshifted_funcbody_type
         return App(func, arg), unshifted_funcbody_type
-    elif isinstance(expr, Proj):
-        tuple_value, tuple_type = calc(expr.tuple_expr, context, type_pool, def_pool)
-        # BUG: 暂时无法获得Type
-        return Proj(expr.typename, expr.index, tuple_value), Sort('u')
-    elif isinstance(expr, NatLiteral):
-        return expr, Const("Nat")
-    elif isinstance(expr, StrLiteral):
-        return expr, Const("String")
     else:
         raise ValueError("Unknown expr", expr)
+
+def DefEq(target: Expr, source: Expr, context: list[Arg], type_pool: dict[str, Expr], def_pool: dict[str, Expr]) -> bool:
+    return True
+    if isinstance(target, Sort):
+        return target == source
+    elif isinstance(target, Const):
+        return target == source
+    elif isinstance(target, Arg):
+        return target == source
+    elif isinstance(target, BoundVar):
+        return target == source
+    elif isinstance(target, Forall):
+        assert isinstance(source, Forall)
+        new_context = [target.var_type] + context
+        return DefEq(target.body, source.body, new_context, type_pool, def_pool)
+    elif isinstance(target, Lambda):
+        assert isinstance(source, Lambda)
+        new_context = [target.var_type] + context
+        return DefEq(target.body, source.body, new_context, type_pool, def_pool)
+    elif isinstance(target, App):
+        assert isinstance(source, App)
+        return DefEq(target.func, source.func, context, type_pool, def_pool) and DefEq(target.arg, source.arg, context, type_pool, def_pool)
+    else:
+        raise ValueError("Unknown expr", target)
+
+def shift_expr(expr: Expr, offset: int, step: int):
+    if step == 0:
+        return expr
+    if isinstance(expr, Sort):
+        return expr
+    elif isinstance(expr, Const):
+        return expr
+    elif isinstance(expr, Arg):
+        return Arg(shift_expr(expr.type, offset=offset, step=step), expr.name)
+    elif isinstance(expr, BoundVar):
+        if expr.index >= offset:
+            return BoundVar(expr.index + step)
+        return expr
+    elif isinstance(expr, Forall):
+        shifted_var_type = shift_expr(expr.var_type, offset=offset, step=step)
+        shifted_body = shift_expr(expr.body, offset=offset + 1, step=step)
+        return Forall(shifted_var_type, shifted_body)
+    elif isinstance(expr, Lambda):
+        shifted_var_type = shift_expr(expr.var_type, offset=offset, step=step)
+        shifted_body = shift_expr(expr.body, offset=offset + 1, step=step)
+        return Lambda(shifted_var_type, shifted_body)
+    elif isinstance(expr, App):
+        shifted_func = shift_expr(expr.func, offset=offset, step=step)
+        shifted_arg = shift_expr(expr.arg, offset=offset, step=step)
+        return App(shifted_func, shifted_arg)
+    else:
+        raise ValueError("Unknown expr", expr)
+
+def unshift_expr(expr: Expr, offset: int, head: Expr):
+    if isinstance(expr, Sort):
+        return expr
+    elif isinstance(expr, Const):
+        return expr
+    elif isinstance(expr, Arg):
+        return Arg(unshift_expr(expr.type, offset=offset, head=head), expr.name)
+    elif isinstance(expr, BoundVar):
+        if expr.index >= offset:
+            if expr.index == offset:
+                return shift_expr(head, offset=0, step=offset)
+            return BoundVar(expr.index - 1)
+        return expr
+    elif isinstance(expr, Forall):
+        shifted_var_type = unshift_expr(expr.var_type, offset=offset, head=head)
+        shifted_body = unshift_expr(expr.body, offset=offset + 1, head=head)
+        return Forall(shifted_var_type, shifted_body)
+    elif isinstance(expr, Lambda):
+        shifted_var_type = unshift_expr(expr.var_type, offset=offset, head=head)
+        shifted_body = unshift_expr(expr.body, offset=offset + 1, head=head)
+        return Lambda(shifted_var_type, shifted_body)
+    elif isinstance(expr, App):
+        shifted_func = unshift_expr(expr.func, offset=offset, head=head)
+        shifted_arg = unshift_expr(expr.arg, offset=offset, head=head)
+        return App(shifted_func, shifted_arg)
+    return expr
+
+def get_level(expr: Expr, context: list[Arg], type_pool: dict[str, Expr]) -> Level:
+    if isinstance(expr, Sort):
+        result = expr.level
+    elif isinstance(expr, Const):
+        assert expr.label in type_pool, f"Const {expr.label} is not defined."
+        expr_type = type_pool[expr.label]
+        result = PreLevel(get_level(expr_type, context[expr.index:], type_pool))
+    elif isinstance(expr, Arg):
+        result = get_level(expr.type, context, type_pool)
+    elif isinstance(expr, BoundVar):
+        next_expr = context[expr.index]
+        result = PreLevel(get_level(next_expr, context, type_pool))
+    elif isinstance(expr, Forall):
+        left = get_level(expr.var_type, context, type_pool)
+        right = get_level(expr.body, [expr.var_type] + context, type_pool)
+        result = MaxLevel(left, right)
+    elif isinstance(expr, Lambda):
+        left = get_level(expr.var_type, context, type_pool)
+        right = get_level(expr.body, [expr.var_type] + context, type_pool)
+        result = PreLevel(MaxLevel(left, SuccLevel(right)))
+    elif isinstance(expr, App):
+        _, func_type = calc(expr.func, context, type_pool)
+        assert isinstance(func_type, Forall), f"Function application to a non-function: {func_type}"
+        result = PreLevel(get_level(func_type.body, [func_type.var_type] + context, type_pool))
+    else:
+        raise ValueError("Unknown expr", expr)
+    return result
 
 
 if __name__ == "__main__":

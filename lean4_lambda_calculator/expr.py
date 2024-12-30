@@ -294,27 +294,31 @@ if __name__ == "__main__":
     expr1 = Forall(Prop, Forall(Prop, Forall(Forall(BoundVar(1), BoundVar(1)),
         Forall(Forall(BoundVar(1), BoundVar(3)), App(App(Iff, BoundVar(3)), BoundVar(2)))
     )))
-    print("expr1 :", print_expr_by_name(expr1))
-    # expr1 : Prop -> Prop -> (#1 -> #1) -> (#1 -> #3) -> Iff #3 #2
+    print("expr1 by name :", print_expr_by_name(expr1))
+    # expr1 by name : Prop -> Prop -> (#1 -> #1) -> (#1 -> #3) -> Iff #3 #2
     rename_expr(expr1)
-    print("expr1 :", print_expr_by_name(expr1))
+    print("renamed expr1 :", print_expr_by_name(expr1))
+    # renamed expr1: (a : Prop) -> (b : Prop) -> (a -> b) -> (b -> a) -> Iff a b
 
     expr2 = Forall(Arg(Prop, "a"), Forall(Arg(Prop, "b"), Forall(Forall(BoundVar(1), BoundVar(1)),
         Forall(Forall(BoundVar(1), BoundVar(3)), App(App(Iff, BoundVar(3)), BoundVar(2)))
     )))
-    print("expr2 :", print_expr_by_name(expr2))
-    print("expr2 :", print_expr_by_index(expr2))
-    # expr2 : (a : Prop) -> (b : Prop) -> (a -> b) -> (b -> a) -> Iff a b
+    print("expr2 by name :", print_expr_by_name(expr2))
+    # expr2 by name : (a : Prop) -> (b : Prop) -> (a -> b) -> (b -> a) -> Iff a b
+    print("expr2 by index:", print_expr_by_index(expr2))
+    # expr2 by index: Prop -> Prop -> (#1 -> #1) -> (#1 -> #3) -> Iff #3 #2
 
     expr3 = Lambda(Prop, Lambda(Prop, Forall(BoundVar(1), BoundVar(1))))
-    print("expr3 :", print_expr_by_name(expr3))
-    # expr3 : Prop => Prop => (#1 -> #1)
+    print("expr3 by name :", print_expr_by_name(expr3))
+    # expr3 by name : Prop => Prop => (#1 -> #1) 
+    rename_expr(expr3)
+    print("renamed expr3 :", print_expr_by_name(expr3))
 
     expr4 = Lambda(Arg(Prop, "a"), Lambda(Arg(Prop, "b"), Forall(BoundVar(1), BoundVar(1))))
-    print("expr4 :", print_expr_by_name(expr4))
-    # expr4 : (a : Prop) => (b : Prop) => (a -> b)
-
-    print("expr4 :", print_expr_by_index(expr4))
+    print("expr4 by name :", print_expr_by_name(expr4))
+    # expr4 by name : (a : Prop) => (b : Prop) => (a -> b)
+    print("expr4 by index:", print_expr_by_index(expr4))
+    # expr4 by name : Prop => Prop => (#1 -> #1)
 
     """
     state  : (a : Prop) -> Iff a a
