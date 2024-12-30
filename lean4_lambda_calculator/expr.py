@@ -5,7 +5,7 @@ Date: 2024-12-12
 License: MIT
 """
 
-from level import Level
+from .level import Level
 
 class Expr:
     def __hash__(self):
@@ -287,48 +287,3 @@ def _get_new_name(index: int, used_names: set[str]) -> tuple[str, int]:
         if name not in used_names:
             return name, index + 1 
         index += 1
-
-if __name__ == "__main__":
-    Prop = Const("Prop")
-    Iff = Const("Iff")
-    expr1 = Forall(Prop, Forall(Prop, Forall(Forall(BoundVar(1), BoundVar(1)),
-        Forall(Forall(BoundVar(1), BoundVar(3)), App(App(Iff, BoundVar(3)), BoundVar(2)))
-    )))
-    print("expr1 by name :", print_expr_by_name(expr1))
-    # expr1 by name : Prop -> Prop -> (#1 -> #1) -> (#1 -> #3) -> Iff #3 #2
-    rename_expr(expr1)
-    print("renamed expr1 :", print_expr_by_name(expr1))
-    # renamed expr1: (a : Prop) -> (b : Prop) -> (a -> b) -> (b -> a) -> Iff a b
-
-    expr2 = Forall(Arg(Prop, "a"), Forall(Arg(Prop, "b"), Forall(Forall(BoundVar(1), BoundVar(1)),
-        Forall(Forall(BoundVar(1), BoundVar(3)), App(App(Iff, BoundVar(3)), BoundVar(2)))
-    )))
-    print("expr2 by name :", print_expr_by_name(expr2))
-    # expr2 by name : (a : Prop) -> (b : Prop) -> (a -> b) -> (b -> a) -> Iff a b
-    print("expr2 by index:", print_expr_by_index(expr2))
-    # expr2 by index: Prop -> Prop -> (#1 -> #1) -> (#1 -> #3) -> Iff #3 #2
-
-    expr3 = Lambda(Prop, Lambda(Prop, Forall(BoundVar(1), BoundVar(1))))
-    print("expr3 by name :", print_expr_by_name(expr3))
-    # expr3 by name : Prop => Prop => (#1 -> #1) 
-    rename_expr(expr3)
-    print("renamed expr3 :", print_expr_by_name(expr3))
-
-    expr4 = Lambda(Arg(Prop, "a"), Lambda(Arg(Prop, "b"), Forall(BoundVar(1), BoundVar(1))))
-    print("expr4 by name :", print_expr_by_name(expr4))
-    # expr4 by name : (a : Prop) => (b : Prop) => (a -> b)
-    print("expr4 by index:", print_expr_by_index(expr4))
-    # expr4 by name : Prop => Prop => (#1 -> #1)
-
-    """
-    state  : (a : Prop) -> Iff a a
-    action : (a : Prop) => Iff.intro a a
-             (a : Prop) -> (a -> a) -> (a -> a) -> Iff a a
-    state  : (a : Prop) -> (a -> a) -> (a -> a) ; (a : Prop) -> a -> a 
-    action : (a : Prop) -> (b : a -> a) -> b
-             (a : Prop) -> (a -> a) -> (a -> a)
-    state  : (a : Prop) -> a -> a 
-    action : (a : Prop) => (b : a) => b
-             (a : Prop) -> a -> a 
-    state  : <empty>
-    """

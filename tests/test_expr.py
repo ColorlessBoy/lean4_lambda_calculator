@@ -1,10 +1,9 @@
 import pytest
-from lean4_lambda_calculator.expr import Const, Sort, BoundVar, Arg, Forall, Lambda, App, print_expr_by_name, print_expr_by_index, rename_expr
-from lean4_lambda_calculator.level import Level
+from lean4_lambda_calculator.expr import Const, Sort, BoundVar, Arg, Forall, Lambda, App, print_expr_by_name, print_expr_by_index, rename_expr, Level
 
 def test_sort():
     expr = Sort(0)
-    assert expr.level.value == 0
+    assert expr.level == Level(0)
     assert expr.predicate == 100
     assert repr(expr) == "S(0)"
 
@@ -51,20 +50,28 @@ def test_app():
     assert repr(expr) == "(Nat => #0) Nat"
 
 def test_print_expr_by_name():
-    expr = Forall(Const("Prop"), Forall(Const("Prop"), App(Const("Iff"), BoundVar(1))))
+    Prop = Const("Prop")
+    Iff = Const("Iff")
+    expr = Forall(Arg(Prop, "a"), Forall(Arg(Prop, "b"), Forall(Forall(BoundVar(1), BoundVar(1)),
+        Forall(Forall(BoundVar(1), BoundVar(3)), App(App(Iff, BoundVar(3)), BoundVar(2)))
+    )))
     result = print_expr_by_name(expr)
-    assert result == "Prop -> Prop -> Iff #1"
+    assert result == "(a : Prop) -> (b : Prop) -> (a -> b) -> (b -> a) -> Iff a b"
 
 def test_print_expr_by_index():
-    expr = Forall(Const("Prop"), Forall(Const("Prop"), App(Const("Iff"), BoundVar(1))))
+    Prop = Const("Prop")
+    Iff = Const("Iff")
+    expr = Forall(Arg(Prop, "a"), Forall(Arg(Prop, "b"), Forall(Forall(BoundVar(1), BoundVar(1)),
+        Forall(Forall(BoundVar(1), BoundVar(3)), App(App(Iff, BoundVar(3)), BoundVar(2)))
+    )))
     result = print_expr_by_index(expr)
-    assert result == "Prop -> Prop -> Iff #1"
+    assert result == "Prop -> Prop -> (#1 -> #1) -> (#1 -> #3) -> Iff #3 #2"
 
 def test_rename_expr():
     expr = Forall(Const("Prop"), Forall(Const("Prop"), App(Const("Iff"), BoundVar(1))))
     rename_expr(expr)
     result = print_expr_by_name(expr)
-    assert result == "(a : Prop) -> (b : Prop) -> Iff b"
+    assert result == "(a : Prop) -> (b : Prop) -> Iff a"
 
 def test_sort_with_level():
     level = Level(1)
