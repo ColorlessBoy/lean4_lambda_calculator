@@ -6,7 +6,7 @@ License: MIT
 """
 
 from level import Level, SuccLevel, MaxLevel, PreLevel
-from expr import Expr, BoundVar, Const, Lambda, Forall, App, Sort, Proj, NatVar, StrVar
+from expr import Expr, BoundVar, Const, Lambda, Forall, App, Sort, Proj, NatLiteral, StrLiteral
 
 VarType = tuple[Expr, Expr]
 
@@ -159,9 +159,9 @@ def calc(expr: Expr, context: list[VarType], type_pool: dict[str, Expr], def_poo
         tuple_value, tuple_type = calc(expr.tuple_expr, context, type_pool, def_pool)
         # BUG: 暂时无法获得Type
         return Proj(expr.typename, expr.index, tuple_value), Sort('u')
-    elif isinstance(expr, NatVar):
+    elif isinstance(expr, NatLiteral):
         return expr, Const("Nat")
-    elif isinstance(expr, StrVar):
+    elif isinstance(expr, StrLiteral):
         return expr, Const("String")
     else:
         raise ValueError("Unknown expr", expr)

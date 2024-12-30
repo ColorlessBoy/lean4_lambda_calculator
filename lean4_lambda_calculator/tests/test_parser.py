@@ -1,6 +1,6 @@
 import unittest
 from parser import tokenize, parse_expr, get_const
-from expr import Const, App, Lambda, Forall, Sort, Proj, NatVar, StrVar
+from expr import Const, App, Lambda, Forall, Sort, Proj, NatLiteral, StrLiteral
 
 class TestParser(unittest.TestCase):
 
@@ -36,11 +36,11 @@ class TestParser(unittest.TestCase):
         self.assertEqual(expr.tuple_expr.label, "tuple")
 
         expr = parse_expr("(NL 42)")
-        self.assertIsInstance(expr, NatVar)
+        self.assertIsInstance(expr, NatLiteral)
         self.assertEqual(expr.var, 42)
 
         expr = parse_expr('(SL "string")')
-        self.assertIsInstance(expr, StrVar)
+        self.assertIsInstance(expr, StrLiteral)
         self.assertEqual(expr.var, "string")
 
     def test_get_const(self):

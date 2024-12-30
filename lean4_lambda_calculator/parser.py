@@ -1,4 +1,4 @@
-from expr import Expr, Const, App, Lambda, Forall, Sort, BoundVar, Proj, NatVar, StrVar
+from expr import Expr, Const, App, Lambda, Forall, Sort, BoundVar, Proj, NatLiteral, StrLiteral
 from level import Level, SuccLevel, MaxLevel
 import re
 from typing import List
@@ -9,7 +9,7 @@ from calculator import calc
 def tokenize(expr: str) -> List[str]:
     """将输入字符串拆分为标记列表"""
     # 使用正则表达式匹配括号、标识符和数字
-    pattern = r"[()+:]|->|=>|[A-Za-z0-9_.\u00A0-\uFFFF]+|\S"
+    pattern = r"[()+]|[A-Za-z0-9_.\u00A0-\uFFFF]+|\S"
     tokens = re.findall(pattern, expr)
     return tokens
 
@@ -61,20 +61,13 @@ def parse(tokens: List[str]) -> Expr:
         index = int(tokens.pop(0))
         return BoundVar(index)
 
-    elif token == "P":
-        # Proj: (Proj typename index tuple_expr)
-        typename = tokens.pop(0)
-        index = int(tokens.pop(0))
-        tuple_expr = parse(tokens)
-        return Proj(typename, index, tuple_expr)
-    
     elif token == "NL":
         var = int(tokens.pop(0))
-        return NatVar(var)
+        return NatLiteral(var)
     
     elif token == "SL":
         var = tokens.pop(0).strip('"')
-        return StrVar(var)
+        return StrLiteral(var)
 
     else:
         raise ValueError(f"Unknown token: {token}")
@@ -126,10 +119,10 @@ def get_const(expr: Expr) -> list[str]:
     elif isinstance(expr, Proj):
         return get_const(expr.tuple_expr)
     
-    elif isinstance(expr, NatVar):
+    elif isinstance(expr, NatLiteral):
         return ["Nat"]
     
-    elif isinstance(expr, StrVar):
+    elif isinstance(expr, StrLiteral):
         return ["String"]
 
     else:
