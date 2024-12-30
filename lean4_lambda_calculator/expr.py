@@ -7,8 +7,6 @@ License: MIT
 
 from level import Level
 
-# 优先级: Sort == Const == BoundVar == NatLiteral == StrLiteral > App > Lambda > Forall > Pair
-
 class Expr:
     def __hash__(self):
         return hash(repr(self))  # 默认以 __repr__ 为基础计算哈希
@@ -173,43 +171,11 @@ class App(Expr):
     def predicate(self) -> int:
         return 3
 
-class NatLiteral(Expr):
-    def __init__(self, var: int):
-        self.var = var
-
-    def __eq__(self, value):
-        if isinstance(value, NatLiteral) and self.var == value.var:
-            return True
-        return False
-
-    def __repr__(self):
-        return str(self.var)
-
-    @property
-    def predicate(self) -> int:
-        return 100
-
-class StrLiteral(Expr):
-    def __init__(self, var: str):
-        self.var = var
-
-    def __eq__(self, value):
-        if isinstance(value, StrLiteral) and self.var == value.var:
-            return True
-        return False
-
-    def __repr__(self):
-        return self.var
-
-    @property
-    def predicate(self) -> int:
-        return 100
-
-# 优先级: Sort == Const == BoundVar == NatLiteral == StrLiteral > App > Lambda > Forall > Pair
+# 优先级: Sort == Const == BoundVar > App > Lambda > Forall > Pair
 def print_expr_by_name(expr: Expr, context: list[Arg] = None) -> str:
     if context is None:
         context = []
-    if isinstance(expr, Sort) or isinstance(expr, Const) or isinstance(expr, NatLiteral) or isinstance(expr, StrLiteral):
+    if isinstance(expr, Sort) or isinstance(expr, Const):
         return str(expr)
     elif isinstance(expr, Arg):
         if expr.name is None:
@@ -247,7 +213,7 @@ def print_expr_by_name(expr: Expr, context: list[Arg] = None) -> str:
     
 # 优先级: Sort == Const == BoundVar == NatLiteral == StrLiteral > App > Lambda > Forall > Pair
 def print_expr_by_index(expr: Expr) -> str:
-    if isinstance(expr, Sort) or isinstance(expr, Const) or isinstance(expr, NatLiteral) or isinstance(expr, StrLiteral):
+    if isinstance(expr, Sort) or isinstance(expr, Const):
         return str(expr)
     elif isinstance(expr, Arg):
         return f"{print_expr_by_index(expr.type)}"
@@ -277,6 +243,51 @@ def print_expr_by_index(expr: Expr) -> str:
         else:
             return f"{left} -> {right}"
 
+def rename_expr(expr: Expr):
+    # 1. 获取所有使用的变量
+    # 2. 保留已经命名过的使用变量
+    # 3. 为没有命名的使用变量赋予新的名字 
+    used_vars = _get_used_vars(expr, [])
+    used_names = set([var.name for var in used_vars if var.name is not None])
+    _set_name(expr, used_vars, 0, used_names)
+
+def _get_used_vars(expr: Expr, context: list[Arg]) -> list[Arg]:
+    if isinstance(expr, Sort) or isinstance(expr, Const) or isinstance(expr, Arg):
+        return []
+    elif isinstance(expr, BoundVar):
+        assert expr.index < len(context), "Out of bound"
+        return [context[expr.index]]
+    elif isinstance(expr, App):
+        return _get_used_vars(expr.func, context) + _get_used_vars(expr.arg, context)
+    elif isinstance(expr, Lambda) or isinstance(expr, Forall):
+        return _get_used_vars(expr.body, [expr.var_type] + context)
+    return []
+
+def _set_name(expr: Expr, used_vars: list[Arg], next_index: int, used_names: set[str]) -> int:
+    if isinstance(expr, Sort) or isinstance(expr, Const):
+        return next_index
+    elif isinstance(expr, Arg):
+        if expr in used_vars:
+            if expr.name is None:
+                expr.name, next_index = _get_new_name(next_index, used_names)
+            return next_index
+        else:
+            expr.name = None
+            return next_index
+    elif isinstance(expr, App):
+        index = _set_name(expr.func, used_vars, next_index, used_names)
+        return _set_name(expr.arg, used_vars, index, used_names)
+    elif isinstance(expr, Lambda) or isinstance(expr, Forall):
+        index = _set_name(expr.var_type, used_vars, next_index, used_names)
+        return _set_name(expr.body, used_vars, index, used_names)
+
+def _get_new_name(index: int, used_names: set[str]) -> tuple[str, int]:
+    while True:
+        name = chr(ord('a') + index)
+        if name not in used_names:
+            return name, index + 1 
+        index += 1
+
 if __name__ == "__main__":
     Prop = Const("Prop")
     Iff = Const("Iff")
@@ -285,6 +296,9 @@ if __name__ == "__main__":
     )))
     print("expr1 :", print_expr_by_name(expr1))
     # expr1 : Prop -> Prop -> (#1 -> #1) -> (#1 -> #3) -> Iff #3 #2
+    rename_expr(expr1)
+    print("expr1 :", print_expr_by_name(expr1))
+
     expr2 = Forall(Arg(Prop, "a"), Forall(Arg(Prop, "b"), Forall(Forall(BoundVar(1), BoundVar(1)),
         Forall(Forall(BoundVar(1), BoundVar(3)), App(App(Iff, BoundVar(3)), BoundVar(2)))
     )))
@@ -301,3 +315,16 @@ if __name__ == "__main__":
     # expr4 : (a : Prop) => (b : Prop) => (a -> b)
 
     print("expr4 :", print_expr_by_index(expr4))
+
+    """
+    state  : (a : Prop) -> Iff a a
+    action : (a : Prop) => Iff.intro a a
+             (a : Prop) -> (a -> a) -> (a -> a) -> Iff a a
+    state  : (a : Prop) -> (a -> a) -> (a -> a) ; (a : Prop) -> a -> a 
+    action : (a : Prop) -> (b : a -> a) -> b
+             (a : Prop) -> (a -> a) -> (a -> a)
+    state  : (a : Prop) -> a -> a 
+    action : (a : Prop) => (b : a) => b
+             (a : Prop) -> a -> a 
+    state  : <empty>
+    """
