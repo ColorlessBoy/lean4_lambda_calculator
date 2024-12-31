@@ -313,3 +313,25 @@ def _set_new_level(expr: Expr, used_free_symbols: set[str], renamed_symbols: dic
         return Forall(_set_new_level(expr.var_type, used_free_symbols, renamed_symbols), _set_new_level(expr.body, used_free_symbols, renamed_symbols))
     else:
         raise ValueError("Unknown expr", expr)
+
+def expr_todef(expr: Expr, def_pool: dict[str, Expr]) -> Expr:
+    if len(def_pool) == 0:
+        return expr
+    if isinstance(expr, Sort):
+        return expr
+    elif isinstance(expr, Const):
+        if expr.label in def_pool:
+            return def_pool[expr.label]
+        return expr
+    elif isinstance(expr, Arg):
+        return Arg(expr_todef(expr.type, def_pool), expr.name)
+    elif isinstance(expr, BoundVar):
+        return expr
+    elif isinstance(expr, App):
+        return App(expr_todef(expr.func, def_pool), expr_todef(expr.arg, def_pool))
+    elif isinstance(expr, Lambda):
+        return Lambda(expr_todef(expr.var_type, def_pool), expr_todef(expr.body, def_pool))
+    elif isinstance(expr, Forall):
+        return Forall(expr_todef(expr.var_type, def_pool), expr_todef(expr.body, def_pool))
+    else:
+        raise ValueError("Unknown expr", expr)

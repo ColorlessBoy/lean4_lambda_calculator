@@ -6,7 +6,7 @@ License: MIT
 """
 
 from lean4_lambda_calculator.level import Level, SuccLevel, MaxLevel, PreLevel
-from lean4_lambda_calculator.expr import Expr, BoundVar, Const, Lambda, Forall, App, Sort, Arg, expr_rename_level
+from lean4_lambda_calculator.expr import Expr, BoundVar, Const, Lambda, Forall, App, Sort, Arg, expr_rename_level, expr_todef
 
 
 # 求解表达式的类型
@@ -61,7 +61,7 @@ def calc(expr: Expr, context: list[Arg], type_pool: dict[str, Expr] = None, def_
         arg, arg_type = calc(expr.arg, context, type_pool, def_pool, used_free_symbols)
         func, func_type = calc(expr.func, context, type_pool, def_pool, used_free_symbols)
         assert isinstance(func_type, Forall)
-        assert DefEq(func_type.var_type, arg_type, context, type_pool, def_pool), f"Type mismatch: want\n  {func_type.var_type}\nget\n  {arg_type}\n\n"
+        assert DefEq(func_type.var_type, arg_type, context, type_pool, def_pool, used_free_symbols), f"Type mismatch: want\n  {func_type.var_type}\nget\n  {arg_type}\n\n"
         tmp = unshift_expr(func_type.body, head=arg, offset=0)
         unshifted_funcbody_type, _ = calc(tmp, context, type_pool, def_pool, used_free_symbols)
         if isinstance(func, Lambda):
@@ -72,30 +72,13 @@ def calc(expr: Expr, context: list[Arg], type_pool: dict[str, Expr] = None, def_
     else:
         raise ValueError("Unknown expr", expr)
 
-
-def DefEq(target: Expr, source: Expr, context: list[Arg], type_pool: dict[str, Expr], def_pool: dict[str, Expr]) -> bool:
-    return True
-    if isinstance(target, Sort):
-        return target == source
-    elif isinstance(target, Const):
-        return target == source
-    elif isinstance(target, Arg):
-        return target == source
-    elif isinstance(target, BoundVar):
-        return target == source
-    elif isinstance(target, Forall):
-        assert isinstance(source, Forall)
-        new_context = [target.var_type] + context
-        return DefEq(target.body, source.body, new_context, type_pool, def_pool)
-    elif isinstance(target, Lambda):
-        assert isinstance(source, Lambda)
-        new_context = [target.var_type] + context
-        return DefEq(target.body, source.body, new_context, type_pool, def_pool)
-    elif isinstance(target, App):
-        assert isinstance(source, App)
-        return DefEq(target.func, source.func, context, type_pool, def_pool) and DefEq(target.arg, source.arg, context, type_pool, def_pool)
-    else:
-        raise ValueError("Unknown expr", target)
+def DefEq(target: Expr, source: Expr, context: list[Arg], type_pool: dict[str, Expr], def_pool: dict[str, Expr], used_free_symbols: set[str]) -> bool:
+    # TODO: Sort 只是进行了两两对比，不确定整个等式是否能满足要求。比如：Sort(u) = Sort(v), Sort(u+1) = Sort(v) 不能同时满足。
+    if target == source:
+        return True
+    subs_target = calc(expr_todef(target, def_pool), context, type_pool, None, used_free_symbols)[0]
+    subs_source = calc(expr_todef(source, def_pool), context, type_pool, None, used_free_symbols)[0]
+    return subs_target == subs_source
 
 def shift_expr(expr: Expr, offset: int, step: int):
     if step == 0:

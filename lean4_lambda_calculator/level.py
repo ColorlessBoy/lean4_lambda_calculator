@@ -1,4 +1,4 @@
-from sympy import symbols, Eq, solve, Max, Expr as SymExpr, simplify
+from sympy import symbols, Eq, solve, Max, Expr as SymExpr, simplify, satisfiable
 from typing import Union, List, Set
 
 # LevelType 可以是整数或 sympy 表达式
@@ -16,7 +16,10 @@ class Level:
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Level):
-            return simplify(self.symbol - other.symbol) == 0
+            # 构造方程 self.symbol == other.symbol
+            equation = Eq(self.symbol, other.symbol)
+            rst = satisfiable(equation)
+            return bool(rst)
         return False
 
     def __lt__(self, other: "Level") -> bool:
