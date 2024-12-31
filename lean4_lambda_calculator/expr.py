@@ -5,7 +5,7 @@ Date: 2024-12-12
 License: MIT
 """
 
-from .level import Level
+from lean4_lambda_calculator.level import Level
 
 class Expr:
     def __hash__(self):

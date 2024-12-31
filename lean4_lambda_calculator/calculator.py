@@ -5,8 +5,8 @@ Date: 2024-11-27
 License: MIT
 """
 
-from level import Level, SuccLevel, MaxLevel, PreLevel
-from expr import Expr, BoundVar, Const, Lambda, Forall, App, Sort, Arg
+from lean4_lambda_calculator.level import Level, SuccLevel, MaxLevel, PreLevel
+from lean4_lambda_calculator.expr import Expr, BoundVar, Const, Lambda, Forall, App, Sort, Arg
 
 
 # 求解表达式的类型
@@ -29,7 +29,7 @@ def calc(expr: Expr, context: list[Arg], type_pool: dict[str, Expr] = None, def_
         assert expr.index < len(
             context
         ), f"Index {expr.index} out of bounds for context: {context}"
-        return expr, shift_expr(context[expr.index], offset=0, step=expr.index)
+        return expr, shift_expr(context[expr.index].type, offset=0, step=expr.index+1)
     elif isinstance(expr, Forall):
         assert isinstance(expr.var_type, Arg), f"Type of variable in Forall should be Arg, but got {expr.var_type}"
         var_type, _ = calc(expr.var_type, context, type_pool, def_pool)
@@ -57,10 +57,10 @@ def calc(expr: Expr, context: list[Arg], type_pool: dict[str, Expr] = None, def_
         func, func_type = calc(expr.func, context, type_pool, def_pool)
         assert isinstance(func_type, Forall)
         assert DefEq(func_type.var_type, arg_type, context, type_pool, def_pool), f"Type mismatch: want\n  {func_type.var_type}\nget\n  {arg_type}\n\n"
-        tmp = unshift_expr(func_type.body, head=arg)
+        tmp = unshift_expr(func_type.body, head=arg, offset=0)
         unshifted_funcbody_type, _ = calc(tmp, context, type_pool, def_pool)
         if isinstance(func, Lambda):
-            tmp = unshift_expr(func.body, head=arg)
+            tmp = unshift_expr(func.body, head=arg, offset=0)
             unshifted_funcbody, _ = calc(tmp, context, type_pool, def_pool)
             return unshifted_funcbody, unshifted_funcbody_type
         return App(func, arg), unshifted_funcbody_type
@@ -152,12 +152,12 @@ def get_level(expr: Expr, context: list[Arg], type_pool: dict[str, Expr]) -> Lev
     elif isinstance(expr, Const):
         assert expr.label in type_pool, f"Const {expr.label} is not defined."
         expr_type = type_pool[expr.label]
-        result = PreLevel(get_level(expr_type, context[expr.index:], type_pool))
+        result = PreLevel(get_level(expr_type, context, type_pool))
     elif isinstance(expr, Arg):
         result = get_level(expr.type, context, type_pool)
     elif isinstance(expr, BoundVar):
         next_expr = context[expr.index]
-        result = PreLevel(get_level(next_expr, context, type_pool))
+        result = PreLevel(get_level(next_expr, context[expr.index+1:], type_pool))
     elif isinstance(expr, Forall):
         left = get_level(expr.var_type, context, type_pool)
         right = get_level(expr.body, [expr.var_type] + context, type_pool)
