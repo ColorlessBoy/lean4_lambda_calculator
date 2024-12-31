@@ -5,7 +5,7 @@ Date: 2024-12-12
 License: MIT
 """
 
-from lean4_lambda_calculator.level import Level, level_subs_symbols
+from lean4_lambda_calculator.level import Level, level_subs_symbols, Eq
 
 class Expr:
     def __hash__(self):
@@ -335,3 +335,24 @@ def expr_todef(expr: Expr, def_pool: dict[str, Expr]) -> Expr:
         return Forall(expr_todef(expr.var_type, def_pool), expr_todef(expr.body, def_pool))
     else:
         raise ValueError("Unknown expr", expr)
+
+def get_sort_eq_conditions(target: Expr, source: Expr) -> list[str]:
+    if target != source:
+        return []
+    elif isinstance(target, Sort):
+        if isinstance(source, Sort):
+            eq = Eq(target.level.symbol, source.level.symbol)
+            return [str(eq)]
+        return []
+    elif isinstance(target, Const):
+        return []
+    elif isinstance(target, Arg):
+        return get_sort_eq_conditions(target.type, source.type)
+    elif isinstance(target, BoundVar):
+        return []
+    elif isinstance(target, App):
+        return get_sort_eq_conditions(target.func, source.func) + get_sort_eq_conditions(target.arg, source.arg)
+    elif isinstance(target, Lambda) or isinstance(target, Forall):
+        return get_sort_eq_conditions(target.var_type, source.var_type) + get_sort_eq_conditions(target.body, source.body)
+    else:
+        raise ValueError("Unknown expr", target)

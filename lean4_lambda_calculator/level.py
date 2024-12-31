@@ -1,4 +1,4 @@
-from sympy import symbols, Eq, solve, Max, Expr as SymExpr, simplify, satisfiable
+from sympy import symbols, Eq, solve, Max, Expr as SymExpr, simplify, satisfiable, sympify
 from typing import Union, List, Set
 
 # LevelType 可以是整数或 sympy 表达式
@@ -84,44 +84,42 @@ def _get_new_name(used_names: set[str], used_new_names: set[str]) -> str:
             return name
         index += 1
 
-# 测试代码
-if __name__ == "__main__":
-    # 基本层级
-    l1 = Level(3)
-    l2 = SuccLevel(Level("n1"))
+def is_solvable(equations_str: List[str]) -> bool:
+    """
+    检查一个字符串列表形式的方程组是否有解。
 
-    print(f"l1: {l1}")  # 输出: 3
-    print(f"l2: {l2}")  # 输出: n1 + 1
+    参数:
+        equations_str (List[str]): 方程组的字符串列表，例如 ["x + y = 10", "y - z = 2"]。
+    
+    返回:
+        bool: 如果方程组有解，返回 True；否则返回 False。
+    """
+    if not equations_str:
+        return True  # 空方程组默认有解
 
-    # 创建一个方程 l2 == l1，即 n2 + 1 = 3
-    equation = Eq(l2.symbol, l1.symbol)
-    print(f"Equation: {equation}")  # 输出: Eq(n2 + 1, 3)
+    # 第一次解析，收集自由符号
+    parsed_equations = []
+    all_symbols = set()
+    
+    for eq_str in equations_str:
+        # 暂时解析字符串
+        parsed_eq = sympify(eq_str.replace("=", "-(") + ")")  # 转换为表达式格式
+        parsed_equations.append(parsed_eq)
+        all_symbols.update(parsed_eq.free_symbols)
 
-    # 求解 n2 
-    solution: List = solve(equation)
-    print(f"Solution: {solution}")  # 输出: [2]
+    # 创建统一的符号上下文
+    symbol_context = {str(sym): symbols(str(sym)) for sym in all_symbols}
 
-    # 提取表达式中的变量名
-    print(f"Variables in l2: {l2.get_variables()}")  # 输出: {'n2'}
+    # 使用统一的符号上下文重新解析方程组
+    equations = [
+        Eq(sympify(eq_str.split("=")[0], locals=symbol_context), 
+           sympify(eq_str.split("=")[1], locals=symbol_context))
+        for eq_str in equations_str
+    ]
 
-    # 验证求解结果
-    if solution:
-        custom_var1_value = solution[0]
-        print(f"n1 = {custom_var1_value}")  # 输出: n1 = 2
+    # 检查是否有解
+    logical_expression = Eq(0, 0)
+    for eq in equations:
+        logical_expression = logical_expression & eq
 
-    l3 = Level(custom_var1_value + 1)
-    print(f"l3: {l3}")  # 输出: 3
-    print(l3 == l1)     # 输出: True
-
-    # 测试 MaxLevel
-    l4 = MaxLevel(Level(2), SuccLevel(Level("n2")))
-    print(f"l4: {l4}")  # 输出: Max(2, n2 + 1)
-    print(f"Variables in l4: {l4.get_variables()}")  # 输出: {'n2'}
-
-    u1 = SuccLevel(Level('u_1'))
-    u2 = SuccLevel(Level('u_2'))
-    print(u1.match(u2))
-
-    # 测试 MaxLevel
-    l5 = MaxLevel(Level(0), SuccLevel(Level("n2")))
-    print("l5:", l5)
+    return bool(satisfiable(logical_expression))

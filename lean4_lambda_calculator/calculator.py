@@ -5,8 +5,8 @@ Date: 2024-11-27
 License: MIT
 """
 
-from lean4_lambda_calculator.level import Level, SuccLevel, MaxLevel, PreLevel
-from lean4_lambda_calculator.expr import Expr, BoundVar, Const, Lambda, Forall, App, Sort, Arg, expr_rename_level, expr_todef
+from lean4_lambda_calculator.level import Level, SuccLevel, MaxLevel, PreLevel, is_solvable
+from lean4_lambda_calculator.expr import Expr, BoundVar, Const, Lambda, Forall, App, Sort, Arg, expr_rename_level, expr_todef, get_sort_eq_conditions
 
 
 # 求解表达式的类型
@@ -73,12 +73,15 @@ def calc(expr: Expr, context: list[Arg], type_pool: dict[str, Expr] = None, def_
         raise ValueError("Unknown expr", expr)
 
 def DefEq(target: Expr, source: Expr, context: list[Arg], type_pool: dict[str, Expr], def_pool: dict[str, Expr], used_free_symbols: set[str]) -> bool:
-    # TODO: Sort 只是进行了两两对比，不确定整个等式是否能满足要求。比如：Sort(u) = Sort(v), Sort(u+1) = Sort(v) 不能同时满足。
     if target == source:
         return True
     subs_target = calc(expr_todef(target, def_pool), context, type_pool, None, used_free_symbols)[0]
     subs_source = calc(expr_todef(source, def_pool), context, type_pool, None, used_free_symbols)[0]
-    return subs_target == subs_source
+    if subs_target == subs_source:
+        conditions = get_sort_eq_conditions(subs_target, subs_source)
+        if is_solvable(conditions):
+            return True
+    return False
 
 def shift_expr(expr: Expr, offset: int, step: int):
     if step == 0:
