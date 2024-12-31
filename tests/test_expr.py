@@ -1,5 +1,5 @@
 import pytest
-from lean4_lambda_calculator.expr import Const, Sort, BoundVar, Arg, Forall, Lambda, App, print_expr_by_name, print_expr_by_index, rename_expr, Level
+from lean4_lambda_calculator.expr import Const, Sort, BoundVar, Arg, Forall, Lambda, App, print_expr_by_name, print_expr_by_index, expr_rename_args, Level
 
 def test_sort():
     expr = Sort(0)
@@ -69,7 +69,7 @@ def test_print_expr_by_index():
 
 def test_rename_expr():
     expr = Forall(Const("Prop"), Forall(Const("Prop"), App(Const("Iff"), BoundVar(1))))
-    rename_expr(expr)
+    expr_rename_args(expr)
     result = print_expr_by_name(expr)
     assert result == "(a : Prop) -> (b : Prop) -> Iff a"
 

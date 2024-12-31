@@ -58,6 +58,28 @@ class PreLevel(Level):
     def __init__(self, level: Level) -> None:
         super().__init__(level.symbol - 1)
 
+def level_subs_symbols(level: Level, used_free_symbols: set[str], renamed_symbols: dict[str, str]) -> Level:
+    rst_symbol = level.symbol
+    for symbol in rst_symbol.free_symbols:
+        s_symbol = str(symbol)
+        if s_symbol not in used_free_symbols:
+            continue
+        if s_symbol in renamed_symbols:
+            new_name = renamed_symbols[s_symbol]
+        else:
+            new_name = _get_new_name(used_free_symbols, set(renamed_symbols.values()))
+            renamed_symbols[s_symbol] = new_name
+        new_symbol = symbols(new_name, integer=True, nonnegative=True)
+        rst_symbol = rst_symbol.subs(symbol, new_symbol)
+    return Level(rst_symbol) 
+
+def _get_new_name(used_names: set[str], used_new_names: set[str]) -> str:
+    index = 0
+    while True:
+        name = f"u{index}"
+        if name not in used_names:
+            return name
+        index += 1
 
 # 测试代码
 if __name__ == "__main__":

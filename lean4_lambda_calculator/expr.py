@@ -5,7 +5,7 @@ Date: 2024-12-12
 License: MIT
 """
 
-from lean4_lambda_calculator.level import Level
+from lean4_lambda_calculator.level import Level, level_subs_symbols
 
 class Expr:
     def __hash__(self):
@@ -243,27 +243,27 @@ def print_expr_by_index(expr: Expr) -> str:
         else:
             return f"{left} -> {right}"
 
-def rename_expr(expr: Expr):
+def expr_rename_args(expr: Expr):
     # 1. 获取所有使用的变量
     # 2. 保留已经命名过的使用变量
     # 3. 为没有命名的使用变量赋予新的名字 
-    used_vars = _get_used_vars(expr, [])
+    used_vars = _get_used_args(expr, [])
     used_names = set([var.name for var in used_vars if var.name is not None])
-    _set_name(expr, used_vars, 0, used_names)
+    _arg_set_name(expr, used_vars, 0, used_names)
 
-def _get_used_vars(expr: Expr, context: list[Arg]) -> list[Arg]:
+def _get_used_args(expr: Expr, context: list[Arg]) -> list[Arg]:
     if isinstance(expr, Sort) or isinstance(expr, Const) or isinstance(expr, Arg):
         return []
     elif isinstance(expr, BoundVar):
         assert expr.index < len(context), "Out of bound"
         return [context[expr.index]]
     elif isinstance(expr, App):
-        return _get_used_vars(expr.func, context) + _get_used_vars(expr.arg, context)
+        return _get_used_args(expr.func, context) + _get_used_args(expr.arg, context)
     elif isinstance(expr, Lambda) or isinstance(expr, Forall):
-        return _get_used_vars(expr.body, [expr.var_type] + context)
+        return _get_used_args(expr.body, [expr.var_type] + context)
     return []
 
-def _set_name(expr: Expr, used_vars: list[Arg], next_index: int, used_names: set[str]) -> int:
+def _arg_set_name(expr: Expr, used_vars: list[Arg], next_index: int, used_names: set[str]) -> int:
     if isinstance(expr, Sort) or isinstance(expr, Const):
         return next_index
     elif isinstance(expr, Arg):
@@ -275,11 +275,11 @@ def _set_name(expr: Expr, used_vars: list[Arg], next_index: int, used_names: set
             expr.name = None
             return next_index
     elif isinstance(expr, App):
-        index = _set_name(expr.func, used_vars, next_index, used_names)
-        return _set_name(expr.arg, used_vars, index, used_names)
+        index = _arg_set_name(expr.func, used_vars, next_index, used_names)
+        return _arg_set_name(expr.arg, used_vars, index, used_names)
     elif isinstance(expr, Lambda) or isinstance(expr, Forall):
-        index = _set_name(expr.var_type, used_vars, next_index, used_names)
-        return _set_name(expr.body, used_vars, index, used_names)
+        index = _arg_set_name(expr.var_type, used_vars, next_index, used_names)
+        return _arg_set_name(expr.body, used_vars, index, used_names)
 
 def _get_new_name(index: int, used_names: set[str]) -> tuple[str, int]:
     while True:
@@ -287,3 +287,29 @@ def _get_new_name(index: int, used_names: set[str]) -> tuple[str, int]:
         if name not in used_names:
             return name, index + 1 
         index += 1
+    
+def expr_rename_level(expr: Expr, used_free_symbols: set[str]) -> Expr:
+    if len(used_free_symbols) == 0: 
+        return expr, []
+    renamed_symbols = {} 
+    new_expr = _set_new_level(expr, used_free_symbols, renamed_symbols) 
+    return new_expr, renamed_symbols.values()
+
+def _set_new_level(expr: Expr, used_free_symbols: set[str], renamed_symbols: dict[str, str]) -> Expr:
+    if isinstance(expr, Sort):
+        new_level = level_subs_symbols(expr.level, used_free_symbols, renamed_symbols)
+        return Sort(new_level)
+    elif isinstance(expr, Const):
+        return expr
+    elif isinstance(expr, Arg):
+        return Arg(_set_new_level(expr.type, used_free_symbols, renamed_symbols), expr.name)
+    elif isinstance(expr, BoundVar):
+        return expr
+    elif isinstance(expr, App):
+        return App(_set_new_level(expr.func, used_free_symbols, renamed_symbols), _set_new_level(expr.arg, used_free_symbols, renamed_symbols))
+    elif isinstance(expr, Lambda):
+        return Lambda(_set_new_level(expr.var_type, used_free_symbols, renamed_symbols), _set_new_level(expr.body, used_free_symbols, renamed_symbols))
+    elif isinstance(expr, Forall):
+        return Forall(_set_new_level(expr.var_type, used_free_symbols, renamed_symbols), _set_new_level(expr.body, used_free_symbols, renamed_symbols))
+    else:
+        raise ValueError("Unknown expr", expr)

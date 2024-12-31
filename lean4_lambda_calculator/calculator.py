@@ -6,24 +6,29 @@ License: MIT
 """
 
 from lean4_lambda_calculator.level import Level, SuccLevel, MaxLevel, PreLevel
-from lean4_lambda_calculator.expr import Expr, BoundVar, Const, Lambda, Forall, App, Sort, Arg
+from lean4_lambda_calculator.expr import Expr, BoundVar, Const, Lambda, Forall, App, Sort, Arg, expr_rename_level
 
 
 # 求解表达式的类型
 # 返回化简后的表达式和类型
-def calc(expr: Expr, context: list[Arg], type_pool: dict[str, Expr] = None, def_pool: dict[str, Expr] = None) -> tuple[Expr, Expr]:
+def calc(expr: Expr, context: list[Arg], type_pool: dict[str, Expr] = None, def_pool: dict[str, Expr] = None, used_free_symbols: set[str] = None) -> tuple[Expr, Expr]:
     if type_pool is None:
         type_pool = {}
     if def_pool is None:
         def_pool = {}
+    if used_free_symbols is None:
+        used_free_symbols: set[str] = set()
     if isinstance(expr, Sort):
+        used_free_symbols.update(str(s) for s in expr.level.symbol.free_symbols)
         return expr, Sort(SuccLevel(expr.level))
     elif isinstance(expr, Const):
         assert expr.label in type_pool, f"Const {expr.label} is not defined."
         # 常量的类型的定义不需要考虑上下文化简, 直接返回定义的类型 
-        return expr, type_pool[expr.label] 
+        expr_type, new_used_free_symbols = expr_rename_level(type_pool[expr.label], used_free_symbols)
+        used_free_symbols.update(new_used_free_symbols)
+        return expr, expr_type
     elif isinstance(expr, Arg):
-        arg_type, _ = calc(expr.type, context, type_pool, def_pool)
+        arg_type, _ = calc(expr.type, context, type_pool, def_pool, used_free_symbols)
         return Arg(arg_type, expr.name), arg_type
     elif isinstance(expr, BoundVar):
         assert expr.index < len(
@@ -32,40 +37,41 @@ def calc(expr: Expr, context: list[Arg], type_pool: dict[str, Expr] = None, def_
         return expr, shift_expr(context[expr.index].type, offset=0, step=expr.index+1)
     elif isinstance(expr, Forall):
         assert isinstance(expr.var_type, Arg), f"Type of variable in Forall should be Arg, but got {expr.var_type}"
-        var_type, _ = calc(expr.var_type, context, type_pool, def_pool)
+        var_type, _ = calc(expr.var_type, context, type_pool, def_pool, used_free_symbols)
         assert isinstance(var_type, Arg), f"Type of variable in Forall should be Arg, but got {var_type}"
         new_context = [var_type] + context
         new_body, body_type = calc(
-            expr.body, new_context, type_pool, def_pool
+            expr.body, new_context, type_pool, def_pool, used_free_symbols
         )
         return_expr = Forall(var_type, new_body)
         return_type = Sort(SuccLevel(MaxLevel(get_level(var_type, context, type_pool), get_level(new_body, new_context, type_pool))))
         return return_expr, return_type
     elif isinstance(expr, Lambda):
         assert isinstance(expr.var_type, Arg), f"Type of variable in Lambda should be Arg, but got {expr.var_type}"
-        var_type, _ = calc(expr.var_type, context, type_pool, def_pool)
+        var_type, _ = calc(expr.var_type, context, type_pool, def_pool, used_free_symbols)
         assert isinstance(var_type, Arg), f"Type of variable in Forall should be Arg, but got {var_type}"
         new_context = [var_type] + context
         new_body, body_type = calc(
-            expr.body, new_context, type_pool, def_pool
+            expr.body, new_context, type_pool, def_pool, used_free_symbols
         )
         return_expr = Lambda(var_type, new_body)
         return_type = Forall(var_type, body_type)
         return return_expr, return_type
     elif isinstance(expr, App):
-        arg, arg_type = calc(expr.arg, context, type_pool, def_pool)
-        func, func_type = calc(expr.func, context, type_pool, def_pool)
+        arg, arg_type = calc(expr.arg, context, type_pool, def_pool, used_free_symbols)
+        func, func_type = calc(expr.func, context, type_pool, def_pool, used_free_symbols)
         assert isinstance(func_type, Forall)
         assert DefEq(func_type.var_type, arg_type, context, type_pool, def_pool), f"Type mismatch: want\n  {func_type.var_type}\nget\n  {arg_type}\n\n"
         tmp = unshift_expr(func_type.body, head=arg, offset=0)
-        unshifted_funcbody_type, _ = calc(tmp, context, type_pool, def_pool)
+        unshifted_funcbody_type, _ = calc(tmp, context, type_pool, def_pool, used_free_symbols)
         if isinstance(func, Lambda):
             tmp = unshift_expr(func.body, head=arg, offset=0)
-            unshifted_funcbody, _ = calc(tmp, context, type_pool, def_pool)
+            unshifted_funcbody, _ = calc(tmp, context, type_pool, def_pool, used_free_symbols)
             return unshifted_funcbody, unshifted_funcbody_type
         return App(func, arg), unshifted_funcbody_type
     else:
         raise ValueError("Unknown expr", expr)
+
 
 def DefEq(target: Expr, source: Expr, context: list[Arg], type_pool: dict[str, Expr], def_pool: dict[str, Expr]) -> bool:
     return True
