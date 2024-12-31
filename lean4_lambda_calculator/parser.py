@@ -1,213 +1,117 @@
-from expr import Expr, Const, App, Lambda, Forall, Sort, BoundVar, Proj, NatLiteral, StrLiteral
-from level import Level, SuccLevel, MaxLevel
-import re
-from typing import List
-import os
-from calculator import calc
+from lark import Lark, Transformer, UnexpectedInput
+from lean4_lambda_calculator.expr import BoundVar, Const, Lambda, Forall, App, Sort, Arg, print_expr_by_name, Expr, const_to_boundvar
+from lean4_lambda_calculator.level import SuccLevel, MaxLevel, Level
 
+# 优先级: Sort == Const == BoundVar > App > Lambda > Forall > Arg
+# 定义 Lark 文法
+expr_grammar = r"""
+    start: expr
 
-def tokenize(expr: str) -> List[str]:
-    """将输入字符串拆分为标记列表"""
-    # 使用正则表达式匹配括号、标识符和数字
-    pattern = r"[()+]|[A-Za-z0-9_.\u00A0-\uFFFF]+|\S"
-    tokens = re.findall(pattern, expr)
-    return tokens
+    // 优先级从高到低
+    expr: primary | app | lambda | forall
+    primary: sort | const | boundvar
 
+    // App 是左结合
+    app: app appexpr          -> app
+       | appexpr appexpr      -> app
+    appexpr: primary | "(" expr ")" 
 
-def parse(tokens: List[str]) -> Expr:
-    """解析标记列表并生成表达式树"""
-    if not tokens:
-        raise ValueError("Unexpected end of tokens")
+    // Lambda 是右结合
+    lambda: lambdaarg "=>" lambdabody -> lam
+    lambdaarg: "(" const ":" expr ")" -> arg
+        | lambdaargexpr
+    lambdaargexpr: primary | app | "(" expr ")"
+    lambdabody: lambda | lambdaargexpr
 
-    token = tokens.pop(0)
+    // Forall 是右结合
+    forall: forallarg "->" forallbody -> forall
+    forallarg: "(" const ":" expr ")" -> arg
+        | forallargexpr 
+    forallargexpr: primary | app | lambda | "(" expr ")"
+    forallbody: forall | forallargexpr
 
-    if token == "(":
-        # 递归解析括号内的表达式
-        expr = parse(tokens)
-        if not tokens or tokens.pop(0) != ")":
-            raise ValueError("Missing closing parenthesis")
-        return expr
+    // 基本类型
+    sort: "Sort" "(" level ")"  -> sort 
+    const: /[a-zA-Z_][\w_]*/  -> const 
+    boundvar: "#" INT -> boundvar
 
-    elif token == "C":
-        # Const: (C label)
-        label = tokens.pop(0)
-        return Const(label)
+    // 层级表达式
+    level: level "+" "1" -> succlevel
+         | INT -> unwrap
+         | /[a-zA-Z_][\w_]*/ -> unwrap
+         | "Max" "(" level "," level ")"  -> maxlevel
 
-    elif token == "A":
-        # App: (A func arg)
-        func = parse(tokens)
-        arg = parse(tokens)
-        return App(func, arg)
+    %import common.INT
+    %import common.WS
+    %ignore WS
+"""
 
-    elif token == "L":
-        # Lambda: (L var_type body)
-        var_type = parse(tokens)
-        body = parse(tokens)
-        return Lambda(var_type, body)
+# 定义 Transformer
+class ExprTransformer(Transformer):
+    # 默认行为
+    def __default__(self, data, children, meta):
+        return self.unwrap(children)
 
-    elif token == "F":
-        # Forall: (F var_type body)
-        var_type = parse(tokens)
-        body = parse(tokens)
-        return Forall(var_type, body)
-
-    elif token == "S":
-        # Sort: (S level)
-        level = parse_level(tokens)
-        return Sort(level)
-
-    elif token == "#":
-        # BoundVar: (#index)
-        index = int(tokens.pop(0))
-        return BoundVar(index)
-
-    elif token == "NL":
-        var = int(tokens.pop(0))
-        return NatLiteral(var)
+    def unwrap(self, items):
+        rst = items[0]
+        return rst
     
-    elif token == "SL":
-        var = tokens.pop(0).strip('"')
-        return StrLiteral(var)
-
-    else:
-        raise ValueError(f"Unknown token: {token}")
-
-
-def parse_level(tokens: List[str]) -> Level:
-    """解析 Level 对象"""
-    token = tokens.pop(0)
-    if token == '(':
-        level = parse_level(tokens)
-        assert len(tokens) > 0 and tokens[0] == ')', "Missing closing parenthesis"
-        tokens.pop(0)
-        return level
-    elif token.isdigit():
-        return Level(int(token))
-    elif token == "max":
-        # MaxLevel: (max left right)
-        left = parse_level(tokens)
-        right = parse_level(tokens)
-        return MaxLevel(left, right)
-    else:
-        if tokens[0] == "+" and tokens[1] == "1":
-            tokens.pop(0)
-            tokens.pop(0)
-            return SuccLevel(Level(token))
-        else:
-            return Level(token)
-
-
-def parse_expr(expr_str: str) -> Expr:
-    """将字符串解析为表达式对象"""
-    tokens = tokenize(expr_str)
-    return parse(tokens)
-
-
-def get_const(expr: Expr) -> list[str]:
-    if isinstance(expr, Const):
-        return [expr.label]
-
-    elif isinstance(expr, App):
-        return get_const(expr.func) + get_const(expr.arg)
-
-    elif isinstance(expr, Lambda) or isinstance(expr, Forall):
-        return get_const(expr.var_type) + get_const(expr.body)
-
-    elif isinstance(expr, Sort) or isinstance(expr, BoundVar):
-        return []
-
-    elif isinstance(expr, Proj):
-        return get_const(expr.tuple_expr)
+    def succlevel(self, items):
+        return SuccLevel(Level(str(items[0])))
     
-    elif isinstance(expr, NatLiteral):
-        return ["Nat"]
+    def maxlevel(self, items):
+        return MaxLevel(Level(str(items[0])), Level(str(items[1])))
+
+    def sort(self, items):
+        return Sort(items[0])
+
+    def const(self, items):
+        return Const(str(items[0]))
+
+    def boundvar(self, items):
+        return BoundVar(int(str(items[0])))
     
-    elif isinstance(expr, StrLiteral):
-        return ["String"]
+    def app(self, items):
+        return App(items[0], items[1])
+    
+    def lam(self, items):
+        arg, body = items
+        return Lambda(arg, body)
 
-    else:
-        raise ValueError(f"Unknown expr: {expr}")
+    def forall(self, items):
+        arg, body = items
+        return Forall(arg, body)
 
+    def arg(self, items):
+        return Arg(items[1], str(items[0]))
 
-def load_thm(thmname: str):
-    filepath = os.path.join("data", "thms", thmname + ".txt")
-    with open(filepath, "r") as f:
-        lines = [line.strip() for line in f.readlines()]
-        if len(lines) == 2:
-            lines.append('')
-    return lines
-
-Prop = str(Sort(0))
-
-class ThmsPool:
+class Parser:
     def __init__(self):
-        self.type_pool: dict[str, Expr] = {}
-        self.def_pool: dict[str, Expr] = {}
+        self.parser = Lark(expr_grammar, parser="lalr", transformer=ExprTransformer())
 
-    def update(self, expr: Expr):
-        consts = get_const(expr)
-        next_exprs: list[Expr] = []
-        defs: list[tuple[str, Expr]] = []
-        for const in consts:
-            if const in self.type_pool:
-                continue
-            _, const_type, const_def = load_thm(const)
-            parsed_type = parse_expr(const_type)
-            self.type_pool[const] = parsed_type
-            next_exprs.append(parsed_type)
-            if str(const_type) != Prop and len(const_def) > 0 and '(P' not in const_def:
-                parsed_def = parse_expr(const_def)
-                next_exprs.append(parsed_def)
-                defs.append((const, parsed_def))
-                self.def_pool[const] = parsed_def
-        for next_expr in next_exprs:
-            self.update(next_expr)
-    
-    def simplifyDef(self):
-        for const, def_expr in self.def_pool.items():
-            self.def_pool[const] = calc(def_expr, [], self.type_pool, self.def_pool)[0]
-        
-# 测试代码
+    def parse(self, code: str) -> Expr:
+        try:
+            expr = self.parser.parse(code)
+            return const_to_boundvar(expr, [])
+        except UnexpectedInput as e:
+            return self.handle_error(e)
+
+    def handle_error(self, e: UnexpectedInput):
+        expected = e.expected  # 获取预期的 token
+        line, column = e.line, e.column  # 出错的位置
+        message = f"Syntax error at line {line}, column {column}. Expected one of: {expected}"
+        return message
+
 if __name__ == "__main__":
-    # thmname = "mul_right_cancel_iff"
-    # thmname = "PosMulReflectLE"
-    # thmname = "mul_le_mul_left"
-    thmname = "Zero.toOfNat0"
-    _, thmtype, thmproof = load_thm(thmname)
-    parsed_thmtype = parse_expr(thmtype)
-    print(f"{thmname}:\n  {parsed_thmtype}")
-    parsed_thmproof = parse_expr(thmproof)
-    print(f"{thmname} proof:\n  {parsed_thmproof}")
-
-    thmspool = ThmsPool()
-    thmspool.update(parsed_thmtype)
-    thmspool.update(parsed_thmproof)
-    thmspool.simplifyDef()
-
-    calc_thmproof, calc_thmtype = calc(parsed_thmproof, [], thmspool.type_pool, thmspool.def_pool)
-
-    print(f"{thmname} calc proof:\n  {calc_thmproof}")
-    print(f"{thmname} calc type:\n  {calc_thmtype}")
-
-    print("Check:", parsed_thmtype == calc_thmtype)
-
-
-    parsed_proof1 = parse_expr("(L (S u+1) (F #0 (S 0)))")
-    calc_proof1, calc_type1 = calc(parsed_proof1, [], {}, {})
-    print("parsed_proof1:", parsed_proof1)
-    print("calc_proof1:", calc_proof1)
-    print("calc_type1:", calc_type1)
-
-    parsed_proof2 = parse_expr("(L (S u+1) (L (F #0 (S 0)) #0))")
-    calc_proof2, calc_type2 = calc(parsed_proof2, [], {}, {})
-    print("parsed_proof2:", parsed_proof2)
-    print("calc_proof2:", calc_proof2)
-    print("calc_type2:", calc_type2)
-
-    parsed_proof3 = parse_expr("(F (S u+1) (F (F #0 (S 0)) (A (C Set) #1)))")
-    calc_proof3, calc_type3 = calc(parsed_proof3, [], {"Set": calc_type1}, {"Set": parsed_proof1})
-    print("parsed_proof3:", parsed_proof3)
-    print("calc_proof3:", calc_proof3)
-    print("calc_type3:", calc_type3)
-
-    print("Check:", calc_type2 == calc_proof3)
+    # 解析 Unicode 表达式
+    Prop = Sort("u+1")
+    Iff = Const("Iff")
+    expr = Forall(Arg(Prop, "a"), Forall(Arg(Prop, "b"), Forall(Forall(BoundVar(1), BoundVar(1)),
+        Forall(Forall(BoundVar(1), BoundVar(3)), App(App(Iff, BoundVar(3)), BoundVar(2)))
+    )))
+    code = print_expr_by_name(expr)
+    parser = Parser()
+    parsed_expr = parser.parse(code)
+    print("expr:\n ", code)
+    print("parsed_expr:\n ", print_expr_by_name(parsed_expr))
+    print(parsed_expr == expr)

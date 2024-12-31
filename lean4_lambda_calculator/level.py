@@ -1,5 +1,6 @@
 from sympy import symbols, Eq, solve, Max, Expr as SymExpr, simplify, satisfiable, sympify
 from typing import Union, List, Set
+import re
 
 # LevelType 可以是整数或 sympy 表达式
 LevelType = Union[int, SymExpr]
@@ -47,15 +48,11 @@ class Level:
             return True, solution
         return False, None
 
-class SuccLevel(Level):
-    def __init__(self, level: Level) -> None:
-        super().__init__(level.symbol + 1)
+def SuccLevel(level: Level) -> Level:
+    return Level(level.symbol + 1)
 
-
-class MaxLevel(Level):
-    def __init__(self, left: Level, right: Level) -> None:
-        super().__init__(Max(left.symbol, right.symbol))
-
+def MaxLevel(left: Level, right: Level) -> Level:
+    return Level(Max(left.symbol), right.symbol)
 
 class PreLevel(Level):
     def __init__(self, level: Level) -> None:
@@ -123,3 +120,37 @@ def is_solvable(equations_str: List[str]) -> bool:
         logical_expression = logical_expression & eq
 
     return bool(satisfiable(logical_expression))
+
+def parse_level(code: str) -> Level:
+    tokens = _tokenize(code)
+    return _parse_level(tokens)
+
+def _parse_level(tokens: List[str]) -> Level:
+    """解析 Level 对象"""
+    token = tokens.pop(0)
+    if token.isdigit():
+        return Level(int(token))
+    elif token == "Max":
+        assert tokens[0] == '(', "Max does not followed by `(`"
+        tokens.pop(0)
+        left = _parse_level(tokens)
+        assert tokens[0] == ',', "need a comma `,`"
+        tokens.pop(0)
+        right = _parse_level(tokens)
+        assert tokens[0] == ')', "Max does not ended with `)`"
+        tokens.pop(0)
+        return MaxLevel(left, right)
+    else:
+        if tokens[0] == "+" and tokens[1] == "1":
+            tokens.pop(0)
+            tokens.pop(0)
+            return SuccLevel(Level(token))
+        else:
+            return Level(token)
+
+def _tokenize(expr: str) -> List[str]:
+    """将输入字符串拆分为标记列表"""
+    # 使用正则表达式匹配括号、标识符和数字
+    pattern = r"[()+]|[A-Za-z0-9_.\u00A0-\uFFFF]+|\S"
+    tokens = re.findall(pattern, expr)
+    return tokens

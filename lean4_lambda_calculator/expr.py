@@ -5,7 +5,7 @@ Date: 2024-12-12
 License: MIT
 """
 
-from lean4_lambda_calculator.level import Level, level_subs_symbols, Eq
+from lean4_lambda_calculator.level import Level, level_subs_symbols, Eq, parse_level
 
 class Expr:
     def __hash__(self):
@@ -19,8 +19,10 @@ class Sort(Expr):
     def __init__(self, level: Level | int | str):
         if isinstance(level, Level):
             self.level: Level = level
-        else:
+        elif isinstance(level, int):
             self.level: Level = Level(level)
+        else:
+            self.level: Level = parse_level(level)
     
     def __eq__(self, value):
         if isinstance(value, Sort):
@@ -28,7 +30,7 @@ class Sort(Expr):
         return False
 
     def __repr__(self) -> str:
-        return f"S({self.level})"
+        return f"Sort({self.level})"
 
     @property
     def predicate(self) -> int:
@@ -67,9 +69,9 @@ class BoundVar(Expr):
         return 100
 
 class Arg(Expr):
-    def __init__(self, type: Expr, name: Expr | None):
-        self.name = name
+    def __init__(self, type: Expr, name: str | None = None):
         self.type = type
+        self.name = name
     
     def __eq__(self, value):
         if isinstance(value, Arg):
@@ -171,7 +173,7 @@ class App(Expr):
     def predicate(self) -> int:
         return 3
 
-# 优先级: Sort == Const == BoundVar > App > Lambda > Forall > Pair
+# 优先级: Sort == Const == BoundVar > App > Lambda > Forall > Arg
 def print_expr_by_name(expr: Expr, context: list[Arg] = None) -> str:
     if context is None:
         context = []
@@ -211,7 +213,6 @@ def print_expr_by_name(expr: Expr, context: list[Arg] = None) -> str:
         else:
             return f"{left} -> {right}"
     
-# 优先级: Sort == Const == BoundVar == NatLiteral == StrLiteral > App > Lambda > Forall > Pair
 def print_expr_by_index(expr: Expr) -> str:
     if isinstance(expr, Sort) or isinstance(expr, Const):
         return str(expr)
@@ -356,3 +357,24 @@ def get_sort_eq_conditions(target: Expr, source: Expr) -> list[str]:
         return get_sort_eq_conditions(target.var_type, source.var_type) + get_sort_eq_conditions(target.body, source.body)
     else:
         raise ValueError("Unknown expr", target)
+
+def const_to_boundvar(expr: Expr, context: list[Arg]):
+    if isinstance(expr, Sort):
+        return expr
+    elif isinstance(expr, Const):
+        for idx, arg in enumerate(context):
+            if arg.name == expr.label:
+                return BoundVar(idx)
+        return expr
+    elif isinstance(expr, Arg):
+        return Arg(const_to_boundvar(expr.type, context), expr.name)
+    elif isinstance(expr, BoundVar):
+        return expr
+    elif isinstance(expr, App):
+        return App(const_to_boundvar(expr.func, context), const_to_boundvar(expr.arg, context))
+    elif isinstance(expr, Lambda):
+        return Lambda(const_to_boundvar(expr.var_type, context), const_to_boundvar(expr.body, [expr.var_type] + context))
+    elif isinstance(expr, Forall):
+        return Forall(const_to_boundvar(expr.var_type, context), const_to_boundvar(expr.body, [expr.var_type] + context))
+    else:
+        raise ValueError("Unknown expr", expr)
