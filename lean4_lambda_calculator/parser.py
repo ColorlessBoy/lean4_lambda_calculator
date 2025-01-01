@@ -1,11 +1,26 @@
 from lark import Lark, Transformer, UnexpectedInput
-from lean4_lambda_calculator.expr import BoundVar, Const, Lambda, Forall, App, Sort, Arg, print_expr_by_name, Expr, const_to_boundvar
+from lean4_lambda_calculator.expr import BoundVar, Const, Lambda, Forall, App, Sort, Arg, print_expr_by_name, Expr, const_to_boundvar, set_boundvar_name
 from lean4_lambda_calculator.level import SuccLevel, MaxLevel, Level
+from lean4_lambda_calculator.calculator import calc
+
+class TypeDef:
+    def __init__(self, name: str, type: Expr):
+        self.name = name
+        self.type = type
+
+class EqDef:
+    def __init__(self, name: str, expr: Expr):
+        self.name = name
+        self.expr = expr
+
 
 # 优先级: Sort == Const == BoundVar > App > Lambda > Forall > Arg
 # 定义 Lark 文法
 expr_grammar = r"""
-    start: expr
+    start: definition | expr
+
+    definition: "def" identifier ":" expr -> typedef
+              | "def" identifier "=" expr -> eqdef
 
     // 优先级从高到低
     expr: primary | app | lambda | forall
@@ -32,14 +47,16 @@ expr_grammar = r"""
 
     // 基本类型
     sort: "Sort" "(" level ")"  -> sort 
-    const: /[a-zA-Z_][\w_]*/  -> const 
-    boundvar: "#" INT -> boundvar
+    const: identifier  -> const 
+    boundvar: "#" INT (":" identifier)? -> boundvar
 
     // 层级表达式
     level: level "+" "1" -> succlevel
          | INT -> unwrap
-         | /[a-zA-Z_][\w_]*/ -> unwrap
+         | identifier -> unwrap
          | "Max" "(" level "," level ")"  -> maxlevel
+    
+    identifier: /[a-zA-Z_][\w_]*/
 
     %import common.INT
     %import common.WS
@@ -69,6 +86,8 @@ class ExprTransformer(Transformer):
         return Const(str(items[0]))
 
     def boundvar(self, items):
+        if len(items) >= 2:
+            return BoundVar(int(str(items[0])), items[1])
         return BoundVar(int(str(items[0])))
     
     def app(self, items):
@@ -84,15 +103,24 @@ class ExprTransformer(Transformer):
 
     def arg(self, items):
         return Arg(items[1], str(items[0]))
+    
+    def typedef(self, items):
+        return TypeDef(items[0], items[1])
+    
+    def eqdef(self, items):
+        return EqDef(items[0], items[1])
 
 class Parser:
     def __init__(self):
         self.parser = Lark(expr_grammar, parser="lalr", transformer=ExprTransformer())
 
-    def parse(self, code: str) -> Expr:
+    def parse(self, code: str) -> Expr|str:
         try:
             expr = self.parser.parse(code)
-            return const_to_boundvar(expr, [])
+            if isinstance(expr, Expr):
+                expr = const_to_boundvar(expr, [])
+                set_boundvar_name(expr, [])
+            return expr
         except UnexpectedInput as e:
             return self.handle_error(e)
 
@@ -104,7 +132,7 @@ class Parser:
 
 if __name__ == "__main__":
     # 解析 Unicode 表达式
-    Prop = Sort("u+1")
+    Prop = Sort(0)
     Iff = Const("Iff")
     expr = Forall(Arg(Prop, "a"), Forall(Arg(Prop, "b"), Forall(Forall(BoundVar(1), BoundVar(1)),
         Forall(Forall(BoundVar(1), BoundVar(3)), App(App(Iff, BoundVar(3)), BoundVar(2)))
@@ -115,3 +143,10 @@ if __name__ == "__main__":
     print("expr:\n ", code)
     print("parsed_expr:\n ", print_expr_by_name(parsed_expr))
     print(parsed_expr == expr)
+
+    code2 = "(Prop -> Prop) => Sort(0) => #1 #0"
+    parsed_expr2 = parser.parse(code2)
+    print(parsed_expr2)
+    expr2, expr2_type = calc(parsed_expr2, [],  {"Prop":Sort(1)}, {"Prop":Sort(0)})
+    print(expr2_type)
+

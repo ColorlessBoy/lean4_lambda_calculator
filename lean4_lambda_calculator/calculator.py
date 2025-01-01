@@ -11,7 +11,9 @@ from lean4_lambda_calculator.expr import Expr, BoundVar, Const, Lambda, Forall, 
 
 # 求解表达式的类型
 # 返回化简后的表达式和类型
-def calc(expr: Expr, context: list[Arg], type_pool: dict[str, Expr] = None, def_pool: dict[str, Expr] = None, used_free_symbols: set[str] = None) -> tuple[Expr, Expr]:
+def calc(expr: Expr, context: list[Arg] = None, type_pool: dict[str, Expr] = None, def_pool: dict[str, Expr] = None, used_free_symbols: set[str] = None) -> tuple[Expr, Expr]:
+    if context is None:
+        context = []
     if type_pool is None:
         type_pool = {}
     if def_pool is None:

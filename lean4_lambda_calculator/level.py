@@ -52,7 +52,7 @@ def SuccLevel(level: Level) -> Level:
     return Level(level.symbol + 1)
 
 def MaxLevel(left: Level, right: Level) -> Level:
-    return Level(Max(left.symbol), right.symbol)
+    return Level(Max(left.symbol, right.symbol))
 
 class PreLevel(Level):
     def __init__(self, level: Level) -> None:
@@ -100,7 +100,11 @@ def is_solvable(equations_str: List[str]) -> bool:
     
     for eq_str in equations_str:
         # 暂时解析字符串
-        parsed_eq = sympify(eq_str.replace("=", "-(") + ")")  # 转换为表达式格式
+        if "=" in eq_str:
+            rep_eq_str = eq_str.replace("=", "-(") + ")"
+        else:
+            rep_eq_str = eq_str
+        parsed_eq = sympify(rep_eq_str)  # 转换为表达式格式
         parsed_equations.append(parsed_eq)
         all_symbols.update(parsed_eq.free_symbols)
 

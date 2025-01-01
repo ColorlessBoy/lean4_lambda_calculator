@@ -53,8 +53,9 @@ class Const(Expr):
         return 100
 
 class BoundVar(Expr):
-    def __init__(self, index: int):
+    def __init__(self, index: int, name: str = None):
         self.index = index
+        self.name = name
     
     def __eq__(self, value):
         if isinstance(value, BoundVar) and self.index == value.index:
@@ -288,6 +289,22 @@ def _get_new_name(index: int, used_names: set[str]) -> tuple[str, int]:
         if name not in used_names:
             return name, index + 1 
         index += 1
+
+def expr_clean_unsed_name(expr: Expr):
+    used_vars = _get_used_args(expr, [])
+    _clean_unused_name(expr, used_vars)
+
+def _clean_unused_name(expr: Expr, used_vars: list[Arg]):
+    if isinstance(expr, Arg):
+        if expr not in used_vars:
+            expr.name = None
+    elif isinstance(expr, App):
+        _clean_unused_name(expr.func, used_vars)
+        _clean_unused_name(expr.arg, used_vars)
+    elif isinstance(expr, Lambda) or isinstance(expr, Forall):
+        _clean_unused_name(expr.var_type, used_vars)
+        _clean_unused_name(expr.body, used_vars)
+
     
 def expr_rename_level(expr: Expr, used_free_symbols: set[str]) -> Expr:
     if len(used_free_symbols) == 0: 
@@ -340,15 +357,18 @@ def expr_todef(expr: Expr, def_pool: dict[str, Expr]) -> Expr:
 def get_sort_eq_conditions(target: Expr, source: Expr) -> list[str]:
     if target != source:
         return []
-    elif isinstance(target, Sort):
+    if isinstance(target, Arg):
+        target = target.type
+    if isinstance(source, Arg):
+        source = source.type
+    if isinstance(target, Sort):
         if isinstance(source, Sort):
             eq = Eq(target.level.symbol, source.level.symbol)
-            return [str(eq)]
+            if eq.has_free():
+                return [str(eq)]
         return []
     elif isinstance(target, Const):
         return []
-    elif isinstance(target, Arg):
-        return get_sort_eq_conditions(target.type, source.type)
     elif isinstance(target, BoundVar):
         return []
     elif isinstance(target, App):
@@ -376,5 +396,26 @@ def const_to_boundvar(expr: Expr, context: list[Arg]):
         return Lambda(const_to_boundvar(expr.var_type, context), const_to_boundvar(expr.body, [expr.var_type] + context))
     elif isinstance(expr, Forall):
         return Forall(const_to_boundvar(expr.var_type, context), const_to_boundvar(expr.body, [expr.var_type] + context))
+    else:
+        raise ValueError("Unknown expr", expr)
+
+def set_boundvar_name(expr: Expr, context: list[Arg]) -> None:
+    # inmemory change expr
+    if isinstance(expr, Sort):
+        return
+    elif isinstance(expr, Const):
+        return
+    elif isinstance(expr, Arg):
+        return set_boundvar_name(expr.type, context)
+    elif isinstance(expr, BoundVar):
+        if expr.name is not None:
+            context[expr.index].name = expr.name
+            expr.name = None
+    elif isinstance(expr, App):
+        set_boundvar_name(expr.func, context)
+        set_boundvar_name(expr.arg, context)
+    elif isinstance(expr, Lambda) or isinstance(expr, Forall):
+        set_boundvar_name(expr.var_type, context)
+        set_boundvar_name(expr.body, [expr.var_type] + context)
     else:
         raise ValueError("Unknown expr", expr)
