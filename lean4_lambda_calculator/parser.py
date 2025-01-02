@@ -13,14 +13,21 @@ class EqDef:
         self.name = name
         self.expr = expr
 
+class ThmDef:
+    def __init__(self, name: str, type: Expr):
+        self.name = name
+        self.type = type
+
 
 # 优先级: Sort == Const == BoundVar > App > Lambda > Forall > Arg
 # 定义 Lark 文法
 expr_grammar = r"""
-    start: definition | expr
+    start: definition | thm | expr
 
     definition: "def" identifier ":" expr -> typedef
               | "def" identifier "=" expr -> eqdef
+    
+    thm: "thm" identifier ":" expr -> thmdef
 
     // 优先级从高到低
     expr: primary | app | lambda | forall
@@ -56,7 +63,7 @@ expr_grammar = r"""
          | identifier -> unwrap
          | "Max" "(" level "," level ")"  -> maxlevel
     
-    identifier: /[a-zA-Z_][\w_]*/
+    identifier: /[a-zA-Z_\.][\w_\.]*/ -> identifier
 
     %import common.INT
     %import common.WS
@@ -72,6 +79,9 @@ class ExprTransformer(Transformer):
     def unwrap(self, items):
         rst = items[0]
         return rst
+    
+    def identifier(self, items):
+        return str(items[0])
     
     def succlevel(self, items):
         return SuccLevel(Level(str(items[0])))
@@ -109,6 +119,9 @@ class ExprTransformer(Transformer):
     
     def eqdef(self, items):
         return EqDef(items[0], items[1])
+    
+    def thmdef(self, items):
+        return ThmDef(items[0], items[1])
 
 class Parser:
     def __init__(self):
@@ -120,6 +133,18 @@ class Parser:
             if isinstance(expr, Expr):
                 expr = const_to_boundvar(expr, [])
                 set_boundvar_name(expr, [])
+            elif isinstance(expr, TypeDef):
+                tmp = const_to_boundvar(expr.type, [])
+                set_boundvar_name(tmp, [])
+                expr = TypeDef(expr.name, tmp)
+            elif isinstance(expr, EqDef):
+                tmp = const_to_boundvar(expr.expr, [])
+                set_boundvar_name(tmp, [])
+                expr = EqDef(expr.name, tmp)
+            elif isinstance(expr, ThmDef):
+                tmp = const_to_boundvar(expr.type, [])
+                set_boundvar_name(tmp, [])
+                expr = ThmDef(expr.name, tmp)
             return expr
         except UnexpectedInput as e:
             return self.handle_error(e)
@@ -150,3 +175,6 @@ if __name__ == "__main__":
     expr2, expr2_type = calc(parsed_expr2, [],  {"Prop":Sort(1)}, {"Prop":Sort(0)})
     print(expr2_type)
 
+    thm = "thm Iff.refl : Prop -> Iff #0 #0"
+    parsed_thm = parser.parse(thm)
+    print(parsed_thm)

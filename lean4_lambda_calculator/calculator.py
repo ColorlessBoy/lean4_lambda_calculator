@@ -85,7 +85,7 @@ def DefEq(target: Expr, source: Expr, context: list[Arg], type_pool: dict[str, E
             return True
     return False
 
-def shift_expr(expr: Expr, offset: int, step: int):
+def shift_expr(expr: Expr, offset: int = 0, step: int = 1):
     if step == 0:
         return expr
     if isinstance(expr, Sort):
@@ -167,3 +167,49 @@ def get_level(expr: Expr, context: list[Arg], type_pool: dict[str, Expr]) -> Lev
     else:
         raise ValueError("Unknown expr", expr)
     return result
+
+def proof_step(action: Expr, goal: Expr, diff_context: list[Arg] = None, same_context: list[Arg] = None) -> list[Expr]:
+    if diff_context is None:
+        diff_context = []
+    if same_context is None:
+        same_context = []
+    if action == goal:
+        goals: list[Expr] = []
+        for arg in diff_context:
+            goals = [Forall(arg, goal) for goal in goals]
+            goals.append(arg.type)
+        for arg in same_context:
+            goals = [Forall(arg, goal) for goal in goals]
+        return goals
+    if isinstance(action, Forall):
+        if len(diff_context) == 0 and isinstance(goal, Forall) and action.var_type == goal.var_type:
+            return proof_step(action.body, goal.body, diff_context, [action.var_type] + same_context)
+        else:
+            return proof_step(action.body, shift_expr(goal), [action.var_type] + diff_context, same_context)
+    # 什么都没证明 
+    return [goal]
+
+if __name__ == "__main__":
+    Prop = Const("Prop")
+    type_pool = {
+        "Prop": Sort(1),
+        "Iff": Forall(Prop, Forall(Prop, Prop)),
+        "Iff.intro": Forall(Prop, Forall( Prop, Forall(Forall(BoundVar(1), BoundVar(1)), Forall(Forall(BoundVar(1), BoundVar(3)), App(App(Const("Iff"), BoundVar(3)), BoundVar(2))))))
+    }
+
+    Iff_intro = Const("Iff.intro")
+    Iff_refl = Forall(Prop, App(App(Const("Iff"), BoundVar(0)), BoundVar(0)))
+    action1 = Lambda(Prop, App(App(Iff_intro, BoundVar(0)), BoundVar(0)))
+    _, action1_type = calc(action1, [], type_pool)
+    goals1 = proof_step(action1_type, Iff_refl)
+    print(goals1)
+
+    action2 = Lambda(Prop, Lambda(Forall(BoundVar(0), BoundVar(1)), BoundVar(0)))
+    _, action2_type = calc(action2, [], type_pool)
+    goals2 = proof_step(action2_type, goals1[0])
+    print(goals2)
+
+    action3 = Lambda(Prop, Lambda(BoundVar(0), BoundVar(0)))
+    _, action3_type = calc(action3, [], type_pool)
+    goals3 = proof_step(action3_type, goals1[1])
+    print(goals3)
