@@ -1,0 +1,7 @@
+def Prop = Sort(0)
+def Iff : Prop -> Prop -> Prop
+def Iff.intro : (a:Prop)->(b:Prop)->(a->b)->(b->a)->Iff a b
+thm Iff.refl : (a:Prop)->Iff a a
+(a:Prop)=>Iff.intro a a
+(a:Prop)=>(h: a->a)=>h
+(a:Prop)=>(h:a)=>h
