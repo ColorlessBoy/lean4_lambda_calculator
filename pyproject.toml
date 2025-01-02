@@ -12,6 +12,7 @@ huggingface-hub = "^0.26.5"
 python-dotenv = "^1.0.1"
 sympy = "^1.13.3"
 lark = "^1.2.2"
+colorama = "^0.4.6"
 
 
 [tool.poetry.group.dev.dependencies]

@@ -178,3 +178,9 @@ if __name__ == "__main__":
     thm = "thm Iff.refl : Prop -> Iff #0 #0"
     parsed_thm = parser.parse(thm)
     print(parsed_thm)
+
+    thm2 = "def Forall = (a:Sort(u))=>(b:a->Prop)=>((c:a)->b c)"
+    parsed_thm2 = parser.parse(thm2)
+    assert isinstance(parsed_thm2, EqDef)
+    thm2, thm2_type = calc(parsed_thm2.expr, [], {"Prop":Sort(1)}, {"Prop":Sort(0)})
+    print(thm2_type)

@@ -19,3 +19,11 @@ def Or.elim : (a:Prop)->(b:Prop)->(c:Prop)->Or a b->(a->c)->(b->c)->c
 def False : Prop
 def False.rec : (a:False->Sort(u))->(b:False)->(a b)
 def False.elim = (a:Sort(u))=>(b:False)=>False.rec (False=>a) b
+def True : Prop
+def True.intro : True
+def True.rec : (a:True->Sort(u))->(a True.intro)->(c:True)->a c
+def Not : Prop -> Prop
+def Forall = (a:Sort(u))=>(b:a->Prop)=>((c:a)->b c)
+def Exists : (a:Sort(u))->(a->Prop)->Prop
+def Exists.intro : (a:Sort(u))->(b:a->Prop)->(c:a)->b c->Exists a b
+def Exists.elim : (a : Sort(u)) -> (b : a -> Prop) -> (c : Prop) -> Exists a b -> ((e : a) -> b e -> c) -> c
