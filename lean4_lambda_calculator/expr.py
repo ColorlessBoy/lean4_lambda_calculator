@@ -294,9 +294,12 @@ def expr_clean_unsed_name(expr: Expr):
     used_vars = _get_used_args(expr, [])
     _clean_unused_name(expr, used_vars)
 
+def expr_clean_all_names(expr: Expr):
+    _clean_unused_name(expr, [])
+
 def _clean_unused_name(expr: Expr, used_vars: list[Arg]):
     if isinstance(expr, Arg):
-        if expr not in used_vars:
+        if len(used_vars) == 0 or expr not in used_vars:
             expr.name = None
     elif isinstance(expr, App):
         _clean_unused_name(expr.func, used_vars)

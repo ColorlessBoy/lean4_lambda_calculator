@@ -22,8 +22,11 @@ def False.elim = (a:Sort(u))=>(b:False)=>False.rec (False=>a) b
 def True : Prop
 def True.intro : True
 def True.rec : (a:True->Sort(u))->(a True.intro)->(c:True)->a c
-def Not : Prop -> Prop
+def Not = (a:Prop)=>(a->False) 
 def Forall = (a:Sort(u))=>(b:a->Prop)=>((c:a)->b c)
 def Exists : (a:Sort(u))->(a->Prop)->Prop
 def Exists.intro : (a:Sort(u))->(b:a->Prop)->(c:a)->b c->Exists a b
 def Exists.elim : (a : Sort(u)) -> (b : a -> Prop) -> (c : Prop) -> Exists a b -> ((e : a) -> b e -> c) -> c
+def id = Sort(u)=>(a:#0)=>a
+thm absurd : (a: Prop) -> (b: Sort(u)) -> (h1: a) -> (h2: Not a) -> b
+(a: Prop) => (b: Sort(u)) => (h1 : a) => (h2 : Not a) => False.rec (False => b) (h2 h1)

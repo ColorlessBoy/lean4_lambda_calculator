@@ -1,5 +1,5 @@
 import os
-from lean4_lambda_calculator.expr import print_expr_by_name, Expr
+from lean4_lambda_calculator.expr import print_expr_by_name, Expr, expr_clean_all_names
 from lean4_lambda_calculator.calculator import calc, expr_todef, proof_step
 from lean4_lambda_calculator.parser import Parser, EqDef, TypeDef, ThmDef
 from colorama import Fore, Style, init
@@ -58,23 +58,27 @@ class Shell:
             # 展开定义 
             try:
                 definition, definition_type = calc(expr_todef(expr.expr, self.def_pool), [], self.type_pool, None, None)
+                expr_clean_all_names(definition)
                 self.def_pool[expr.name] = definition
                 _, expr_type = calc(expr.expr, [], self.type_pool, self.def_pool, None)
+                print(Fore.CYAN + expr.name, ":" + Style.RESET_ALL, print_expr_by_name(expr_type), Fore.CYAN + "=" + Style.RESET_ALL, print_expr_by_name(expr.expr))
+                expr_clean_all_names(expr_type)
                 self.type_pool[expr.name] = expr_type
-                print(Fore.CYAN + expr.name, ":" + Style.RESET_ALL, print_expr_by_name(expr_type), Fore.CYAN + ":=" + Style.RESET_ALL, print_expr_by_name(expr.expr))
             except Exception as e:
                 print(e)
                 return False
         elif isinstance(expr, TypeDef):
-            self.type_pool[expr.name] = expr.type
             print(Fore.CYAN + expr.name, ":" + Style.RESET_ALL, print_expr_by_name(expr.type))
+            expr_clean_all_names(expr.type)
+            self.type_pool[expr.name] = expr.type
         elif isinstance(expr, ThmDef):
             # 证明
-            self.is_in_proof = True
-            self.type_pool[expr.name] = expr.type
-            self.goals = [expr.type]
             print(Fore.CYAN + expr.name, ":" + Style.RESET_ALL, print_expr_by_name(expr.type))
             print(Fore.YELLOW + "[Proof] [Goal]" + Style.RESET_ALL, print_expr_by_name(expr.type))
+            self.is_in_proof = True
+            expr_clean_all_names(expr.type)
+            self.type_pool[expr.name] = expr.type
+            self.goals = [expr.type]
         else:
             try: 
                 expr, expr_type = calc(expr, [], self.type_pool, self.def_pool, None)

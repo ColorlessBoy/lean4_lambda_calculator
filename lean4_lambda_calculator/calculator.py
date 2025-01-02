@@ -62,8 +62,13 @@ def calc(expr: Expr, context: list[Arg] = None, type_pool: dict[str, Expr] = Non
     elif isinstance(expr, App):
         arg, arg_type = calc(expr.arg, context, type_pool, def_pool, used_free_symbols)
         func, func_type = calc(expr.func, context, type_pool, def_pool, used_free_symbols)
-        assert isinstance(func_type, Forall)
-        assert DefEq(func_type.var_type, arg_type, context, type_pool, def_pool, used_free_symbols), f"Type mismatch: want\n  {func_type.var_type}\nget\n  {arg_type}\n\n"
+        if not isinstance(func_type, Forall):
+            def_func_type = calc(expr_todef(func_type, def_pool), context, type_pool, def_pool, used_free_symbols)[0]
+            if not isinstance(def_func_type, Forall):
+                raise ValueError(f"Function application to a non-function: {func_type}")
+            func_type = def_func_type
+        if not DefEq(func_type.var_type, arg_type, context, type_pool, def_pool, used_free_symbols):
+            raise ValueError(f"Type mismatch: want {func_type.var_type}, get {arg_type}")
         tmp = unshift_expr(func_type.body, head=arg, offset=0)
         unshifted_funcbody_type, _ = calc(tmp, context, type_pool, def_pool, used_free_symbols)
         if isinstance(func, Lambda):
@@ -77,8 +82,8 @@ def calc(expr: Expr, context: list[Arg] = None, type_pool: dict[str, Expr] = Non
 def DefEq(target: Expr, source: Expr, context: list[Arg], type_pool: dict[str, Expr], def_pool: dict[str, Expr], used_free_symbols: set[str]) -> bool:
     if target == source:
         return True
-    subs_target = calc(expr_todef(target, def_pool), context, type_pool, None, used_free_symbols)[0]
-    subs_source = calc(expr_todef(source, def_pool), context, type_pool, None, used_free_symbols)[0]
+    subs_target = calc(expr_todef(target, def_pool), context, type_pool, def_pool, used_free_symbols)[0]
+    subs_source = calc(expr_todef(source, def_pool), context, type_pool, def_pool, used_free_symbols)[0]
     if subs_target == subs_source:
         conditions = get_sort_eq_conditions(subs_target, subs_source)
         if is_solvable(conditions):
