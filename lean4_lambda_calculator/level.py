@@ -145,7 +145,7 @@ def _parse_level(tokens: List[str]) -> Level:
         tokens.pop(0)
         return MaxLevel(left, right)
     else:
-        if tokens[0] == "+" and tokens[1] == "1":
+        if len(tokens) >= 2 and tokens[0] == "+" and tokens[1] == "1":
             tokens.pop(0)
             tokens.pop(0)
             return SuccLevel(Level(token))

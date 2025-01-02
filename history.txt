@@ -1,7 +1,21 @@
 def Prop = Sort(0)
+def Imp = (a:Prop)=>(b:Prop)=>(a->b)
 def Iff : Prop -> Prop -> Prop
 def Iff.intro : (a:Prop)->(b:Prop)->(a->b)->(b->a)->Iff a b
+def Iff.mp : (a:Prop)->(b:Prop)->Iff a b->a->b
+def Iff.mpr: (a:Prop)->(b:Prop)->Iff a b->b->a
 thm Iff.refl : (a:Prop)->Iff a a
 (a:Prop)=>Iff.intro a a
 (a:Prop)=>(h: a->a)=>h
 (a:Prop)=>(h:a)=>h
+def And : Prop -> Prop -> Prop
+def And.intro : (a:Prop)->(b:Prop)->a->b->And a b
+def And.left : (a:Prop)->(b:Prop)->And a b->a
+def And.right : (a:Prop)->(b:Prop)->And a b->b
+def Or : Prop -> Prop -> Prop
+def Or.inl : (a:Prop)->(b:Prop)->a->Or a b
+def Or.inr : (a:Prop)->(b:Prop)->b->Or a b
+def Or.elim : (a:Prop)->(b:Prop)->(c:Prop)->Or a b->(a->c)->(b->c)->c
+def False : Prop
+def False.rec : (a:False->Sort(u))->(b:False)->(a b)
+def False.elim = (a:Sort(u))=>(b:False)=>False.rec (False=>a) b

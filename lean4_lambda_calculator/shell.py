@@ -17,18 +17,13 @@ class Shell:
         if os.path.exists(self.history_file):
             with open(self.history_file, "r") as f:
                 for line in f:
-                    self.execute(line.strip(), record=False)
+                    self.execute(line.strip())
 
     def save_history(self, code: str):
         with open(self.history_file, "a") as f:
             f.write(code + "\n")
 
-    def execute(self, code: str, record: bool = True):
-        if code == ".exit":
-            print("Exiting...")
-            return False
-        if record:
-            self.save_history(code)
+    def execute(self, code: str):
         if code == ".giveup":
             self.is_in_proof = False
             return True
@@ -36,7 +31,7 @@ class Shell:
         if isinstance(expr, str):
             # error
             print(expr)
-            return True
+            return False
         if self.is_in_proof:
             if isinstance(expr, Expr):
                 try:
@@ -50,20 +45,22 @@ class Shell:
                     else:
                         for goal in self.goals:
                             print("[Proof] [Goal]", print_expr_by_name(goal))
+                    return True
                 except Exception as e:
                     print(e)
-                return True
+                    return False
             else:
                 self.is_in_proof = False
         if isinstance(expr, EqDef):
             # 展开定义 
             try:
                 definition, definition_type = calc(expr_todef(expr.expr, self.def_pool), [], self.type_pool, None, None)
+                self.def_pool[expr.name] = definition
+                self.type_pool[expr.name] = definition_type
+                print(expr.name, ":", print_expr_by_index(definition_type), "=", print_expr_by_index(definition))
             except Exception as e:
                 print(e)
-            self.def_pool[expr.name] = definition
-            self.type_pool[expr.name] = definition_type
-            print(expr.name, "=", print_expr_by_index(definition))
+                return False
         elif isinstance(expr, TypeDef):
             self.type_pool[expr.name] = expr.type
             print(expr.name, ":", print_expr_by_index(expr.type))
@@ -80,13 +77,17 @@ class Shell:
                 print(print_expr_by_index(expr_type))
             except Exception as e:
                 print(e)
+                return False
         return True
 
     def run(self):
         while True:
             code = input(">> " if not self.is_in_proof else "[Proof] >> ")
-            if not self.execute(code):
+            if code == ".exit":
+                print("Exiting...")
                 break
+            if self.execute(code):
+                self.save_history(code)
 
 if __name__ == "__main__":
     shell = Shell()
