@@ -29,4 +29,13 @@ def Exists.intro : (a:Sort(u))->(b:a->Prop)->(c:a)->b c->Exists a b
 def Exists.elim : (a : Sort(u)) -> (b : a -> Prop) -> (c : Prop) -> Exists a b -> ((e : a) -> b e -> c) -> c
 def id = Sort(u)=>(a:#0)=>a
 thm absurd : (a: Prop) -> (b: Sort(u)) -> (h1: a) -> (h2: Not a) -> b
-(a: Prop) => (b: Sort(u)) => (h1 : a) => (h2 : Not a) => False.rec (False => b) (h2 h1)
+(a: Prop) => (b: Sort(u)) => (h1 : a) => (h2 : Not a) => False.elim b 
+(a : Prop) => (b : Sort(u)) => (h1 : a) => (h2 : Not a) => h2 h1
+def Eq : (a : Sort(u)) -> a -> a -> Prop
+def Eq.refl : (a : Sort(u)) -> (b : a) -> Eq a b b
+(a : Sort(u_1)) -> (b : a) -> (motive : (c : a) -> Eq a b c -> Sort(u)) -> motive b (Eq.refl a b) -> (d: a) -> (t: Eq a b d) -> motive d t
+def Eq.rec : (a : Sort(u_1)) -> (b : a) -> (motive : (c : a) -> Eq a b c -> Sort(u)) -> motive b (Eq.refl a b) -> (d: a) -> (t: Eq a b d) -> motive d t
+thm Eq.symm : (a: Sort(u)) -> (x : a) -> (y : a) -> Eq a x y -> Eq a y x
+(a : Sort(u)) => (x : a) => (y : a) => Eq a x y => Eq.rec a x ((b : a) => Eq a x b => Eq a b x) (Eq.refl a x) y #0  
+thm Eq.trans : (a : Sort(u)) -> (x : a) -> (y : a) -> (z : a) -> Eq a x y -> Eq a y z -> Eq a x z 
+(a : Sort(u)) => (x : a) => (y : a) => (z : a) => Eq a x y => Eq a y z => Eq.rec a y ((b : a) => Eq a y b => Eq a x b) #1 z #0

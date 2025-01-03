@@ -294,8 +294,16 @@ def expr_clean_unsed_name(expr: Expr):
     used_vars = _get_used_args(expr, [])
     _clean_unused_name(expr, used_vars)
 
-def expr_clean_all_names(expr: Expr):
-    _clean_unused_name(expr, [])
+def expr_clean_all_names(expr: Expr) -> Expr:
+    if isinstance(expr, Arg):
+        return Arg(expr.type, None)
+    elif isinstance(expr, App):
+        return App(expr_clean_all_names(expr.func), expr_clean_all_names(expr.arg))
+    elif isinstance(expr, Lambda):
+        return Lambda(expr_clean_all_names(expr.var_type), expr_clean_all_names(expr.body))
+    elif isinstance(expr, Forall):
+        return Forall(expr_clean_all_names(expr.var_type), expr_clean_all_names(expr.body))
+    return expr
 
 def _clean_unused_name(expr: Expr, used_vars: list[Arg]):
     if isinstance(expr, Arg):

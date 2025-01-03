@@ -1,8 +1,12 @@
 import os
-from lean4_lambda_calculator.expr import print_expr_by_name, Expr, expr_clean_all_names
+from lean4_lambda_calculator.expr import print_expr_by_name, Expr, expr_clean_all_names 
 from lean4_lambda_calculator.calculator import calc, expr_todef, proof_step
 from lean4_lambda_calculator.parser import Parser, EqDef, TypeDef, ThmDef
 from colorama import Fore, Style, init
+from prompt_toolkit import prompt
+from prompt_toolkit.shortcuts import CompleteStyle
+from prompt_toolkit.completion import WordCompleter
+from prompt_toolkit.history import FileHistory
 
 init(autoreset=True)
 
@@ -15,6 +19,7 @@ class Shell:
         self.goals: list[Expr] = []
         self.history_file = "./history.txt"
         self.load_history()
+        self.history = FileHistory("./prompt_history.txt")
 
     def load_history(self):
         if os.path.exists(self.history_file):
@@ -58,27 +63,23 @@ class Shell:
             # 展开定义 
             try:
                 definition, definition_type = calc(expr_todef(expr.expr, self.def_pool), [], self.type_pool, None, None)
-                expr_clean_all_names(definition)
-                self.def_pool[expr.name] = definition
+                self.def_pool[expr.name] = expr_clean_all_names(definition)
                 _, expr_type = calc(expr.expr, [], self.type_pool, self.def_pool, None)
+                self.type_pool[expr.name] = expr_clean_all_names(expr_type)
                 print(Fore.CYAN + expr.name, ":" + Style.RESET_ALL, print_expr_by_name(expr_type), Fore.CYAN + "=" + Style.RESET_ALL, print_expr_by_name(expr.expr))
-                expr_clean_all_names(expr_type)
-                self.type_pool[expr.name] = expr_type
             except Exception as e:
                 print(e)
                 return False
         elif isinstance(expr, TypeDef):
+            self.type_pool[expr.name] = expr_clean_all_names(expr.type)
             print(Fore.CYAN + expr.name, ":" + Style.RESET_ALL, print_expr_by_name(expr.type))
-            expr_clean_all_names(expr.type)
-            self.type_pool[expr.name] = expr.type
         elif isinstance(expr, ThmDef):
             # 证明
+            self.is_in_proof = True
+            self.type_pool[expr.name] = expr_clean_all_names(expr.type)
+            self.goals = [expr.type]
             print(Fore.CYAN + expr.name, ":" + Style.RESET_ALL, print_expr_by_name(expr.type))
             print(Fore.YELLOW + "[Proof] [Goal]" + Style.RESET_ALL, print_expr_by_name(expr.type))
-            self.is_in_proof = True
-            expr_clean_all_names(expr.type)
-            self.type_pool[expr.name] = expr.type
-            self.goals = [expr.type]
         else:
             try: 
                 expr, expr_type = calc(expr, [], self.type_pool, self.def_pool, None)
@@ -87,10 +88,24 @@ class Shell:
                 print(e)
                 return False
         return True
+    
+    def get_default_input(self):
+        if not self.is_in_proof:
+            return ""
+        goal = print_expr_by_name(self.goals[0])
+        return " => ".join(goal.split(" -> ")[:-1]) + " => "
 
     def run(self):
         while True:
-            code = input(">> " if not self.is_in_proof else "[Proof] >> ")
+            completer = WordCompleter(['def', 'thm', '->', '=>', '.giveup', '.exit'] + list(self.type_pool.keys()))
+            # 提示用户输入
+            code = prompt(
+                ">> " if not self.is_in_proof else "[Proof] >> ", 
+                default=self.get_default_input(),           # 默认值，显示在输入框中
+                completer=completer,             # 自动补全（可选）
+                complete_style=CompleteStyle.READLINE_LIKE,  # 补全风格
+            )
+            # code = input(">> " if not self.is_in_proof else "[Proof] >> ")
             if code == ".exit":
                 print("Exiting...")
                 break
