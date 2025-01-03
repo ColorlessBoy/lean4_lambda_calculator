@@ -33,7 +33,7 @@ def log_execution_time(func):
 # 求解表达式的类型
 # 返回化简后的表达式和类型
 @log_execution_time
-def calc(expr: Expr, context: list[Arg] = None, type_pool: dict[str, Expr] = None, def_pool: dict[str, Expr] = None, used_free_symbols: set[str] = None) -> tuple[Expr, Expr]:
+def calc(expr: Expr, context: list[Arg] = None, type_pool: dict[str, Expr] = None, def_pool: dict[str, Expr] = None, used_free_symbols: set[str] = None, type_no_check: bool = False) -> tuple[Expr, Expr]:
     if context is None:
         context = []
     if type_pool is None:
@@ -68,7 +68,7 @@ def calc(expr: Expr, context: list[Arg] = None, type_pool: dict[str, Expr] = Non
             expr.body, new_context, type_pool, def_pool, used_free_symbols
         )
         return_expr = Forall(var_type, new_body)
-        return_type = Sort(SuccLevel(MaxLevel(get_level(var_type, context, type_pool), get_level(new_body, new_context, type_pool))))
+        return_type = Sort(SuccLevel(MaxLevel(get_level(var_type, context, type_pool, def_pool), get_level(new_body, new_context, type_pool, def_pool))))
         return return_expr, return_type
     elif isinstance(expr, Lambda):
         assert isinstance(expr.var_type, Arg), f"Type of variable in Lambda should be Arg, but got {expr.var_type}"
@@ -89,7 +89,7 @@ def calc(expr: Expr, context: list[Arg] = None, type_pool: dict[str, Expr] = Non
             if not isinstance(def_func_type, Forall):
                 raise ValueError(f"Function application to a non-function: {func_type}")
             func_type = def_func_type
-        if not DefEq(func_type.var_type, arg_type, context, type_pool, def_pool, used_free_symbols):
+        if not type_no_check and not DefEq(func_type.var_type, arg_type, context, type_pool, def_pool, used_free_symbols):
             raise ValueError(f"Type mismatch: want {func_type.var_type}, get {arg_type}")
         tmp = unshift_expr(func_type.body, head=arg, offset=0)
         unshifted_funcbody_type, _ = calc(tmp, context, type_pool, def_pool, used_free_symbols)
@@ -105,8 +105,8 @@ def calc(expr: Expr, context: list[Arg] = None, type_pool: dict[str, Expr] = Non
 def DefEq(target: Expr, source: Expr, context: list[Arg], type_pool: dict[str, Expr], def_pool: dict[str, Expr], used_free_symbols: set[str]) -> bool:
     if target == source:
         return True
-    subs_target = calc(expr_todef(target, def_pool), context, type_pool, def_pool, used_free_symbols)[0]
-    subs_source = calc(expr_todef(source, def_pool), context, type_pool, def_pool, used_free_symbols)[0]
+    subs_target = calc(expr_todef(target, def_pool), context, type_pool, def_pool, used_free_symbols, type_no_check=True)[0]
+    subs_source = calc(expr_todef(source, def_pool), context, type_pool, def_pool, used_free_symbols, type_no_check=True)[0]
     if subs_target == subs_source:
         conditions = get_sort_eq_conditions(subs_target, subs_source)
         if is_solvable(conditions):
@@ -171,36 +171,36 @@ def unshift_expr(expr: Expr, offset: int, head: Expr):
     return expr
 
 @log_execution_time
-def get_level(expr: Expr, context: list[Arg], type_pool: dict[str, Expr]) -> Level:
+def get_level(expr: Expr, context: list[Arg], type_pool: dict[str, Expr], def_pool: dict[str, Expr]) -> Level:
     if isinstance(expr, Sort):
         result = expr.level
     elif isinstance(expr, Const):
         assert expr.label in type_pool, f"Const {expr.label} is not defined."
         expr_type = type_pool[expr.label]
-        result = PreLevel(get_level(expr_type, context, type_pool))
+        result = PreLevel(get_level(expr_type, context, type_pool, def_pool))
     elif isinstance(expr, Arg):
-        result = get_level(expr.type, context, type_pool)
+        result = get_level(expr.type, context, type_pool, def_pool)
     elif isinstance(expr, BoundVar):
         next_expr = context[expr.index]
-        result = PreLevel(get_level(next_expr, context[expr.index+1:], type_pool))
+        result = PreLevel(get_level(next_expr, context[expr.index+1:], type_pool, def_pool))
     elif isinstance(expr, Forall):
-        left = get_level(expr.var_type, context, type_pool)
-        right = get_level(expr.body, [expr.var_type] + context, type_pool)
+        left = get_level(expr.var_type, context, type_pool, def_pool)
+        right = get_level(expr.body, [expr.var_type] + context, type_pool, def_pool)
         result = MaxLevel(left, right)
     elif isinstance(expr, Lambda):
         left = get_level(expr.var_type, context, type_pool)
-        right = get_level(expr.body, [expr.var_type] + context, type_pool)
+        right = get_level(expr.body, [expr.var_type] + context, type_pool, def_pool)
         result = PreLevel(MaxLevel(left, SuccLevel(right)))
     elif isinstance(expr, App):
-        _, func_type = calc(expr.func, context, type_pool)
+        _, func_type = calc(expr.func, context, type_pool, def_pool, type_no_check=True)
         assert isinstance(func_type, Forall), f"Function application to a non-function: {func_type}"
-        result = PreLevel(get_level(func_type.body, [func_type.var_type] + context, type_pool))
+        result = PreLevel(get_level(func_type.body, [func_type.var_type] + context, type_pool, def_pool))
     else:
         raise ValueError("Unknown expr", expr)
     return result
 
 @log_execution_time
-def proof_step(action: Expr, goal: Expr, diff_context: list[Arg] = None, same_context: list[Arg] = None) -> list[Expr]:
+def proof_step(action: Expr, goal: Expr, diff_context: list[Arg] = None, same_context: list[Arg] = None) -> list[Expr] | None:
     if diff_context is None:
         diff_context = []
     if same_context is None:
@@ -219,7 +219,7 @@ def proof_step(action: Expr, goal: Expr, diff_context: list[Arg] = None, same_co
         else:
             return proof_step(action.body, shift_expr(goal), [action.var_type] + diff_context, same_context)
     # 什么都没证明 
-    return [goal]
+    return None
 
 if __name__ == "__main__":
     Prop = Const("Prop")

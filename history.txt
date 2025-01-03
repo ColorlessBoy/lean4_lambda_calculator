@@ -39,3 +39,19 @@ thm Eq.symm : (a: Sort(u)) -> (x : a) -> (y : a) -> Eq a x y -> Eq a y x
 (a : Sort(u)) => (x : a) => (y : a) => Eq a x y => Eq.rec a x ((b : a) => Eq a x b => Eq a b x) (Eq.refl a x) y #0  
 thm Eq.trans : (a : Sort(u)) -> (x : a) -> (y : a) -> (z : a) -> Eq a x y -> Eq a y z -> Eq a x z 
 (a : Sort(u)) => (x : a) => (y : a) => (z : a) => Eq a x y => Eq a y z => Eq.rec a y ((b : a) => Eq a y b => Eq a x b) #1 z #0
+thm Or.resolve_left : (a : Prop) -> (b : Prop) -> (h : Or a b) -> (na : Not a) -> b 
+(a : Prop) => (b : Prop) => (h : Or a b) => (na : Not a) => Or.elim a b b h
+(a : Prop) => (b : Prop) => (h : Or a b) => (na : Not a) => (a -> b) => id b
+(a : Prop) => (b : Prop) => (h : Or a b) => (na : Not a) => a => absurd a b #0 na
+thm Or.resolve_right : (a : Prop) -> (b : Prop) -> (h : Or a b) -> (nb : Not b) -> a
+(a : Prop) => (b : Prop) => (h : Or a b) => (nb : Not b) => Or.elim a b a h
+(a : Prop) => (b : Prop) => (h : Or a b) => (nb : Not b) => (a -> a) => b => absurd b a #0 nb
+(a : Prop) => (b : Prop) => (h : Or a b) => (nb : Not b) => id a
+thm Or.neg_resolve_left : (a : Prop) -> (b : Prop) -> (h : Or (Not a) b) -> (ha : a) -> b
+(a : Prop) => (b : Prop) => (h : Or (Not a) b) => (ha : a) => Or.elim (Not a) b b h 
+(a : Prop) => (b : Prop) => (h : Or (Not a) b) => (ha : a) => (Not a -> b) => id b
+(a : Prop) => (b : Prop) => (h : Or (Not a) b) => (ha : a) => Not a => absurd a b ha #0
+thm Or.neg_resolve_right : (a : Prop) -> (b : Prop) -> (h : Or a (Not b)) -> (hb : b) -> a
+(a : Prop) => (b : Prop) => (h : Or a (Not b)) => (hb : b) => Or.elim a (Not b) a h
+(a : Prop) => (b : Prop) => (h : Or a (Not b)) => (hb : b) => (a -> a) => Not b => absurd b a hb #0
+(a : Prop) => (b : Prop) => (h : Or a (Not b)) => (hb : b) => a => #0

@@ -46,7 +46,8 @@ class Shell:
                     expr, expr_type = calc(expr, [], self.type_pool, self.def_pool, None)
                     print(Fore.GREEN + "[Proof]" + Style.RESET_ALL, print_expr_by_name(expr_type))
                     next_goals = proof_step(expr_type, self.goals[0])
-                    self.goals = next_goals + self.goals[1:]
+                    if next_goals is not None:
+                        self.goals = next_goals + self.goals[1:]
                     if len(self.goals) == 0:
                         print(Fore.GREEN + "[Proof] Q.E.D." + Style.RESET_ALL)
                         self.is_in_proof = False
@@ -62,7 +63,7 @@ class Shell:
         if isinstance(expr, EqDef):
             # 展开定义 
             try:
-                definition, definition_type = calc(expr_todef(expr.expr, self.def_pool), [], self.type_pool, None, None)
+                definition, _ = calc(expr_todef(expr.expr, self.def_pool), [], self.type_pool, self.def_pool, None, type_no_check=True)
                 self.def_pool[expr.name] = expr_clean_all_names(definition)
                 _, expr_type = calc(expr.expr, [], self.type_pool, self.def_pool, None)
                 self.type_pool[expr.name] = expr_clean_all_names(expr_type)
@@ -92,25 +93,49 @@ class Shell:
     def get_default_input(self):
         if not self.is_in_proof:
             return ""
+        
         goal = print_expr_by_name(self.goals[0])
-        return " => ".join(goal.split(" -> ")[:-1]) + " => "
+        parts = []
+        depth = 0
+        current = []
+
+        for char in goal:
+            if char == '(':
+                depth += 1
+            elif char == ')':
+                depth -= 1
+            
+            if depth == 0 and char == '>' and current[-1] == '-':  # Top-level "->"
+                parts.append("".join(current[:-1]).strip())
+                current = []
+            else:
+                current.append(char)
+        
+        if current:
+            parts.append("".join(current).strip())
+
+        # Join the parts with "=>", excluding the final result
+        return " => ".join(parts[:-1]) + " => "
 
     def run(self):
-        while True:
-            completer = WordCompleter(['def', 'thm', '->', '=>', '.giveup', '.exit'] + list(self.type_pool.keys()))
-            # 提示用户输入
-            code = prompt(
-                ">> " if not self.is_in_proof else "[Proof] >> ", 
-                default=self.get_default_input(),           # 默认值，显示在输入框中
-                completer=completer,             # 自动补全（可选）
-                complete_style=CompleteStyle.READLINE_LIKE,  # 补全风格
-            )
-            # code = input(">> " if not self.is_in_proof else "[Proof] >> ")
-            if code == ".exit":
-                print("Exiting...")
-                break
-            if self.execute(code):
-                self.save_history(code)
+        try:
+            while True:
+                completer = WordCompleter(['def', 'thm', '->', '=>', '.giveup', '.exit'] + list(self.type_pool.keys()))
+                # 提示用户输入
+                code = prompt(
+                    ">> " if not self.is_in_proof else "[Proof] >> ", 
+                    default=self.get_default_input(),           # 默认值，显示在输入框中
+                    completer=completer,             # 自动补全（可选）
+                    complete_style=CompleteStyle.READLINE_LIKE,  # 补全风格
+                )
+                # code = input(">> " if not self.is_in_proof else "[Proof] >> ")
+                if code == ".exit":
+                    print("Exiting...")
+                    break
+                if self.execute(code):
+                    self.save_history(code)
+        except (KeyboardInterrupt, EOFError):
+            print("Exiting...")
 
 if __name__ == "__main__":
     shell = Shell()
