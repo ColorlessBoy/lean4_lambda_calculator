@@ -8,9 +8,31 @@ License: MIT
 from lean4_lambda_calculator.level import Level, SuccLevel, MaxLevel, PreLevel, is_solvable
 from lean4_lambda_calculator.expr import Expr, BoundVar, Const, Lambda, Forall, App, Sort, Arg, expr_rename_level, expr_todef, get_sort_eq_conditions
 
+import time
+import logging
+
+# 配置日志记录到文件
+logging.basicConfig(
+    level=logging.INFO,
+    filename="./execution_times.log",
+    filemode="a",  # 追加模式
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+
+# 记录函数执行时间的装饰器
+def log_execution_time(func):
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        duration_ms = (end_time - start_time) * 1000  # 转换为毫秒
+        logging.info(f"{func.__name__} executed in {duration_ms:.2f} ms")
+        return result
+    return wrapper
 
 # 求解表达式的类型
 # 返回化简后的表达式和类型
+@log_execution_time
 def calc(expr: Expr, context: list[Arg] = None, type_pool: dict[str, Expr] = None, def_pool: dict[str, Expr] = None, used_free_symbols: set[str] = None) -> tuple[Expr, Expr]:
     if context is None:
         context = []
@@ -79,6 +101,7 @@ def calc(expr: Expr, context: list[Arg] = None, type_pool: dict[str, Expr] = Non
     else:
         raise ValueError("Unknown expr", expr)
 
+@log_execution_time
 def DefEq(target: Expr, source: Expr, context: list[Arg], type_pool: dict[str, Expr], def_pool: dict[str, Expr], used_free_symbols: set[str]) -> bool:
     if target == source:
         return True
@@ -90,6 +113,7 @@ def DefEq(target: Expr, source: Expr, context: list[Arg], type_pool: dict[str, E
             return True
     return False
 
+@log_execution_time
 def shift_expr(expr: Expr, offset: int = 0, step: int = 1):
     if step == 0:
         return expr
@@ -118,6 +142,7 @@ def shift_expr(expr: Expr, offset: int = 0, step: int = 1):
     else:
         raise ValueError("Unknown expr", expr)
 
+@log_execution_time
 def unshift_expr(expr: Expr, offset: int, head: Expr):
     if isinstance(expr, Sort):
         return expr
@@ -145,6 +170,7 @@ def unshift_expr(expr: Expr, offset: int, head: Expr):
         return App(shifted_func, shifted_arg)
     return expr
 
+@log_execution_time
 def get_level(expr: Expr, context: list[Arg], type_pool: dict[str, Expr]) -> Level:
     if isinstance(expr, Sort):
         result = expr.level
@@ -173,6 +199,7 @@ def get_level(expr: Expr, context: list[Arg], type_pool: dict[str, Expr]) -> Lev
         raise ValueError("Unknown expr", expr)
     return result
 
+@log_execution_time
 def proof_step(action: Expr, goal: Expr, diff_context: list[Arg] = None, same_context: list[Arg] = None) -> list[Expr]:
     if diff_context is None:
         diff_context = []
