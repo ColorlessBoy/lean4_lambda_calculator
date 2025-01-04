@@ -53,8 +53,8 @@ class Shell:
                         self.is_in_proof = False
                     else:
                         for goal in self.goals:
-                            print(Fore.YELLOW + "[Proof] [Goal]" + Style.RESET_ALL, print_expr_by_name(goal))
-                    return True
+                            print(Fore.GREEN + "[Proof] [Goal]" + Style.RESET_ALL, print_expr_by_name(goal))
+                    return True if next_goals is not None else False
                 except Exception as e:
                     print(Fore.RED + str(e) + Style.RESET_ALL)
                     return False
@@ -80,7 +80,7 @@ class Shell:
             self.type_pool[expr.name] = expr_clean_all_names(expr.type)
             self.goals = [expr.type]
             print(Fore.CYAN + expr.name, ":" + Style.RESET_ALL, print_expr_by_name(expr.type))
-            print(Fore.YELLOW + "[Proof] [Goal]" + Style.RESET_ALL, print_expr_by_name(expr.type))
+            print(Fore.GREEN + "[Proof] [Goal]" + Style.RESET_ALL, print_expr_by_name(expr.type))
         else:
             try: 
                 expr, expr_type = calc(expr, [], self.type_pool, self.def_pool, None)
@@ -132,8 +132,9 @@ class Shell:
                 if code == ".exit":
                     print("Exiting...")
                     break
+                prefix = "  " if self.is_in_proof else ""
                 if self.execute(code):
-                    self.save_history(code)
+                    self.save_history(prefix + code)
         except (KeyboardInterrupt, EOFError):
             print("Exiting...")
 

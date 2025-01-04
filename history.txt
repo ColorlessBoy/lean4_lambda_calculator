@@ -5,9 +5,9 @@ def Iff.intro : (a:Prop)->(b:Prop)->(a->b)->(b->a)->Iff a b
 def Iff.mp : (a:Prop)->(b:Prop)->Iff a b->a->b
 def Iff.mpr: (a:Prop)->(b:Prop)->Iff a b->b->a
 thm Iff.refl : (a:Prop)->Iff a a
-(a:Prop)=>Iff.intro a a
-(a:Prop)=>(h: a->a)=>h
-(a:Prop)=>(h:a)=>h
+  (a:Prop)=>Iff.intro a a
+  (a:Prop)=>(h: a->a)=>h
+  (a:Prop)=>(h:a)=>h
 def And : Prop -> Prop -> Prop
 def And.intro : (a:Prop)->(b:Prop)->a->b->And a b
 def And.left : (a:Prop)->(b:Prop)->And a b->a
@@ -15,7 +15,9 @@ def And.right : (a:Prop)->(b:Prop)->And a b->b
 def Or : Prop -> Prop -> Prop
 def Or.inl : (a:Prop)->(b:Prop)->a->Or a b
 def Or.inr : (a:Prop)->(b:Prop)->b->Or a b
-def Or.elim : (a:Prop)->(b:Prop)->(c:Prop)->Or a b->(a->c)->(b->c)->c
+def Or.rec : (a : Prop) -> (b : Prop) -> (motive : Or a b -> Prop) -> ((ha : a) -> motive (Or.inl a b ha)) -> ((hb : b) -> motive (Or.inr a b hb)) -> (h : Or a b) -> motive h
+thm Or.elim : (a:Prop)->(b:Prop)->(c:Prop)->Or a b->(a->c)->(b->c)->c
+  (a : Prop) => (b : Prop) => (c : Prop) => (h1 : Or a b) => (h2 : a -> c) => (h3 : b -> c) => Or.rec a b (Or a b => c) h2 h3 h1  
 def False : Prop
 def False.rec : (a:False->Sort(u))->(b:False)->(a b)
 def False.elim = (a:Sort(u))=>(b:False)=>False.rec (False=>a) b
@@ -23,35 +25,80 @@ def True : Prop
 def True.intro : True
 def True.rec : (a:True->Sort(u))->(a True.intro)->(c:True)->a c
 def Not = (a:Prop)=>(a->False) 
-def Forall = (a:Sort(u))=>(b:a->Prop)=>((c:a)->b c)
-def Exists : (a:Sort(u))->(a->Prop)->Prop
-def Exists.intro : (a:Sort(u))->(b:a->Prop)->(c:a)->b c->Exists a b
-def Exists.elim : (a : Sort(u)) -> (b : a -> Prop) -> (c : Prop) -> Exists a b -> ((e : a) -> b e -> c) -> c
 def id = Sort(u)=>(a:#0)=>a
 thm absurd : (a: Prop) -> (b: Sort(u)) -> (h1: a) -> (h2: Not a) -> b
-(a: Prop) => (b: Sort(u)) => (h1 : a) => (h2 : Not a) => False.elim b 
-(a : Prop) => (b : Sort(u)) => (h1 : a) => (h2 : Not a) => h2 h1
+  (a: Prop) => (b: Sort(u)) => (h1 : a) => (h2 : Not a) => False.elim b 
+  (a : Prop) => (b : Sort(u)) => (h1 : a) => (h2 : Not a) => h2 h1
 def Eq : (a : Sort(u)) -> a -> a -> Prop
 def Eq.refl : (a : Sort(u)) -> (b : a) -> Eq a b b
-(a : Sort(u_1)) -> (b : a) -> (motive : (c : a) -> Eq a b c -> Sort(u)) -> motive b (Eq.refl a b) -> (d: a) -> (t: Eq a b d) -> motive d t
-def Eq.rec : (a : Sort(u_1)) -> (b : a) -> (motive : (c : a) -> Eq a b c -> Sort(u)) -> motive b (Eq.refl a b) -> (d: a) -> (t: Eq a b d) -> motive d t
+def Eq.rec : (a : Sort(u_1)) -> (b : a) -> (c : a) -> (motive : (x : a) -> Eq a b x -> Sort(u)) -> motive b (Eq.refl a b) -> (t: Eq a b c) -> motive c t
 thm Eq.symm : (a: Sort(u)) -> (x : a) -> (y : a) -> Eq a x y -> Eq a y x
-(a : Sort(u)) => (x : a) => (y : a) => Eq a x y => Eq.rec a x ((b : a) => Eq a x b => Eq a b x) (Eq.refl a x) y #0  
+  (a : Sort(u)) => (x : a) => (y : a) => Eq a x y => Eq.rec a x y ((b : a) => Eq a x b => Eq a b x) (Eq.refl a x) #0  
 thm Eq.trans : (a : Sort(u)) -> (x : a) -> (y : a) -> (z : a) -> Eq a x y -> Eq a y z -> Eq a x z 
-(a : Sort(u)) => (x : a) => (y : a) => (z : a) => Eq a x y => Eq a y z => Eq.rec a y ((b : a) => Eq a y b => Eq a x b) #1 z #0
+  (a : Sort(u)) => (x : a) => (y : a) => (z : a) => Eq a x y => Eq a y z => Eq.rec a y z ((b : a) => Eq a y b => Eq a x b) #1 #0
 thm Or.resolve_left : (a : Prop) -> (b : Prop) -> (h : Or a b) -> (na : Not a) -> b 
-(a : Prop) => (b : Prop) => (h : Or a b) => (na : Not a) => Or.elim a b b h
-(a : Prop) => (b : Prop) => (h : Or a b) => (na : Not a) => (a -> b) => id b
-(a : Prop) => (b : Prop) => (h : Or a b) => (na : Not a) => a => absurd a b #0 na
+  (a : Prop) => (b : Prop) => (h : Or a b) => (na : Not a) => Or.elim a b b h
+  (a : Prop) => (b : Prop) => (h : Or a b) => (na : Not a) => (a -> b) => id b
+  (a : Prop) => (b : Prop) => (h : Or a b) => (na : Not a) => a => absurd a b #0 na
 thm Or.resolve_right : (a : Prop) -> (b : Prop) -> (h : Or a b) -> (nb : Not b) -> a
-(a : Prop) => (b : Prop) => (h : Or a b) => (nb : Not b) => Or.elim a b a h
-(a : Prop) => (b : Prop) => (h : Or a b) => (nb : Not b) => (a -> a) => b => absurd b a #0 nb
-(a : Prop) => (b : Prop) => (h : Or a b) => (nb : Not b) => id a
+  (a : Prop) => (b : Prop) => (h : Or a b) => (nb : Not b) => Or.elim a b a h
+  (a : Prop) => (b : Prop) => (h : Or a b) => (nb : Not b) => (a -> a) => b => absurd b a #0 nb
+  (a : Prop) => (b : Prop) => (h : Or a b) => (nb : Not b) => id a
 thm Or.neg_resolve_left : (a : Prop) -> (b : Prop) -> (h : Or (Not a) b) -> (ha : a) -> b
-(a : Prop) => (b : Prop) => (h : Or (Not a) b) => (ha : a) => Or.elim (Not a) b b h 
-(a : Prop) => (b : Prop) => (h : Or (Not a) b) => (ha : a) => (Not a -> b) => id b
-(a : Prop) => (b : Prop) => (h : Or (Not a) b) => (ha : a) => Not a => absurd a b ha #0
+  (a : Prop) => (b : Prop) => (h : Or (Not a) b) => (ha : a) => Or.elim (Not a) b b h 
+  (a : Prop) => (b : Prop) => (h : Or (Not a) b) => (ha : a) => (Not a -> b) => id b
+  (a : Prop) => (b : Prop) => (h : Or (Not a) b) => (ha : a) => Not a => absurd a b ha #0
 thm Or.neg_resolve_right : (a : Prop) -> (b : Prop) -> (h : Or a (Not b)) -> (hb : b) -> a
-(a : Prop) => (b : Prop) => (h : Or a (Not b)) => (hb : b) => Or.elim a (Not b) a h
-(a : Prop) => (b : Prop) => (h : Or a (Not b)) => (hb : b) => (a -> a) => Not b => absurd b a hb #0
-(a : Prop) => (b : Prop) => (h : Or a (Not b)) => (hb : b) => a => #0
+  (a : Prop) => (b : Prop) => (h : Or a (Not b)) => (hb : b) => Or.elim a (Not b) a h
+  (a : Prop) => (b : Prop) => (h : Or a (Not b)) => (hb : b) => (a -> a) => Not b => absurd b a hb #0
+  (a : Prop) => (b : Prop) => (h : Or a (Not b)) => (hb : b) => a => #0
+thm Iff.of_eq : (a : Prop) -> (b : Prop) -> Eq Prop a b -> Iff a b
+  (a : Prop) => (b : Prop) => (h : Eq Prop a b) => Eq.rec Prop a b ((c : Prop) => Eq Prop a c => Iff a c) (Iff.refl a) h 
+thm Iff.trans : (a : Prop) -> (b : Prop) -> (c : Prop) -> (h1 : Iff a b) -> (h2 : Iff b c) -> Iff a c
+  (a : Prop) => (b : Prop) => (c : Prop) => (h1 : Iff a b) => (h2 : Iff b c) => Iff.intro a c
+  (a : Prop) => (b : Prop) => (c : Prop) => (h1 : Iff a b) => (h2 : Iff b c) => (a -> c) => c => Iff.mpr a b h1
+  (a : Prop) => (b : Prop) => (c : Prop) => (h1 : Iff a b) => (h2 : Iff b c) => (a -> c) => Iff.mpr b c h2
+  (a : Prop) => (b : Prop) => (c : Prop) => (h1 : Iff a b) => (h2 : Iff b c) => a => Iff.mp b c h2
+  (a : Prop) => (b : Prop) => (c : Prop) => (h1 : Iff a b) => (h2 : Iff b c) => Iff.mp a b h1
+thm Eq.comm : (a : Sort(u)) -> (x : a) -> (y : a) -> Iff (Eq a x y) (Eq a y x)
+  (a : Sort(u)) => (x : a) => (y : a) => Iff.intro (Eq a x y) (Eq a y x)
+  (a : Sort(u)) => (x : a) => (y : a) => (Eq a x y -> Eq a y x) => Eq.symm a y x
+  (a : Sort(u)) => (x : a) => (y : a) => Eq.symm a x y
+thm Iff.symm : (a : Prop) -> (b : Prop) -> Iff a b -> Iff b a 
+  (a : Prop) => (b : Prop) => Iff a b => Iff.intro b a
+  (a : Prop) => (b : Prop) => Iff a b => (b -> a) => Iff.mp a b #1
+  (a : Prop) => (b : Prop) => Iff a b => Iff.mpr a b #0
+thm Iff.comm : (a : Prop) -> (b : Prop) -> Iff (Iff a b) (Iff b a)
+  (a : Prop) => (b : Prop) => Iff.intro (Iff a b) (Iff b a)
+  (a : Prop) => (b : Prop) => (Iff a b -> Iff b a) => Iff.symm b a
+  (a : Prop) => (b : Prop) => Iff.symm a b
+thm And.symm : (a : Prop) -> (b : Prop) -> And a b -> And b a 
+  (a : Prop) => (b : Prop) => And a b => And.intro b a
+  (a : Prop) => (b : Prop) => And a b => b => And.left a b #1
+  (a : Prop) => (b : Prop) => And a b => And.right a b #0
+thm And.comm : (a : Prop) -> (b : Prop) -> Iff (And a b) (And b a) 
+  (a : Prop) => (b : Prop) => Iff.intro (And a b) (And b a)
+  (a : Prop) => (b : Prop) => (And a b -> And b a) => And.symm b a
+  (a : Prop) => (b : Prop) => And.symm a b
+thm Or.symm : (a : Prop) -> (b : Prop) -> Or a b -> Or b a
+  (a : Prop) => (b : Prop) => Or.elim a b (Or b a) 
+  (a : Prop) => (b : Prop) => Or a b => (a -> Or b a) => b => Or.inl b a #0
+  (a : Prop) => (b : Prop) => Or a b => a => Or.inr b a #0
+thm Or.comm : (a : Prop) -> (b : Prop) -> Iff (Or a b) (Or b a) 
+  (a : Prop) => (b : Prop) => Iff.intro (Or a b) (Or b a)
+  (a : Prop) => (b : Prop) => (Or a b -> Or b a) => Or.symm b a
+  (a : Prop) => (b : Prop) => Or.symm a b
+def Forall = (a:Sort(u))=>(b:a->Prop)=>((c:a)->b c)
+def Exists : (a:Sort(u))->(a->Prop)->Prop
+def Exists.intro : (a:Sort(u))->(h:a->Prop)->(x:a)->h x->Exists a h
+def Exists.rec : (a:Sort(u))->(motive:a->Prop)->(h1:Exists a motive->Prop)->((x:a)->(h2:motive x)-> h1 (Exists.intro a motive x h2))->(h3:Exists a motive)->h1 h3
+thm Exists.elim : (a:Sort(u))->(h:a->Prop)->(b:Prop)->Exists a h->((x:a)->h x->b)->b
+  (a : Sort(u)) => (h : a -> Prop) => (b : Prop) => Exists a h => ((x : a) -> h x -> b) => Exists.rec a h (Exists a h => b) #0 #1 
+def Decidable : Prop -> Sort(1)
+def Decidable.isTrue : (a : Prop) -> a -> Decidable a
+def Decidable.isFalse : (a : Prop) -> Not a -> Decidable a
+def Decidable.rec : (a:Prop)->(h:Decidable a)->(motive:Decidable a->Sort(u))->((h1:Not a)->motive (Decidable.isFalse a h1))->((h2 : a)->motive (Decidable.isTrue a h2))->motive h
+thm Decidable.em : (a:Prop)->Decidable a->Or a (Not a)
+  (a : Prop) => (h : Decidable a) => Decidable.rec a h (Decidable a => Or a (Not a))
+  (a : Prop) => (h : Decidable a) => ((h1 : Not a) -> Or a (Not a)) => Or.inl a (Not a)
+  (a : Prop) => (h : Decidable a) => Or.inr a (Not a)
