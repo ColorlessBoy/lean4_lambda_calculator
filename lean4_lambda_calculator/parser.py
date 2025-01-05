@@ -146,7 +146,7 @@ class Parser:
                 set_boundvar_name(tmp, [])
                 expr = ThmDef(expr.name, tmp)
             return expr
-        except UnexpectedInput as e:
+        except Exception as e:
             return self.handle_error(e)
 
     def handle_error(self, e: UnexpectedInput):

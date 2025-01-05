@@ -45,7 +45,7 @@ class Shell:
                 try:
                     expr, expr_type = calc(expr, [], self.type_pool, self.def_pool, None)
                     print(Fore.GREEN + "[Proof]" + Style.RESET_ALL, print_expr_by_name(expr_type))
-                    next_goals = proof_step(expr_type, self.goals[0])
+                    next_goals = proof_step(expr_type, self.goals[0], type_pool=self.type_pool, def_pool=self.def_pool)
                     if next_goals is not None:
                         self.goals = next_goals + self.goals[1:]
                     if len(self.goals) == 0:

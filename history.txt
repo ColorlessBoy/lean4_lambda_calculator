@@ -102,3 +102,32 @@ thm Decidable.em : (a:Prop)->Decidable a->Or a (Not a)
   (a : Prop) => (h : Decidable a) => Decidable.rec a h (Decidable a => Or a (Not a))
   (a : Prop) => (h : Decidable a) => ((h1 : Not a) -> Or a (Not a)) => Or.inl a (Not a)
   (a : Prop) => (h : Decidable a) => Or.inr a (Not a)
+thm Decidable.byContradiction : (a:Prop)->Decidable a->(Not a->False)->a
+  (a : Prop) => (h:Decidable a) => (nna : Not a -> False) => Decidable.rec a h (Decidable a=>a)
+  (a : Prop) => (h : Decidable a) => (nna : Not a -> False) => ((h1 : Not a) -> a) => (h2 : a) => h2
+  (a : Prop) => (h : Decidable a) => (nna : Not a -> False) => (h1 : Not a) => False.elim a (nna h1) 
+thm Decidable.of_not_not : (a:Prop)->Decidable a->Not (Not a)->a
+  (a : Prop) => Decidable a => Not (Not a) => Decidable.byContradiction a #1
+  (a : Prop) => Decidable a => Not (Not a) => Not a => #1 #0
+thm Decidable.not_and_to_or_not : (p:Prop)->(q:Prop)->(Decidable p)->(Decidable q)->Not (And p q)->Or (Not p) (Not q)
+  (p : Prop) => (q : Prop) => (hp : Decidable p) => (hq : Decidable q) => Not (And p q) => Decidable.rec p hp (Decidable p => Or (Not p) (Not q)) 
+  (p : Prop) => (q : Prop) => (hp : Decidable p) => (hq : Decidable q) => Not (And p q) => ((h1 : Not p) -> Or (Not p) (Not q)) => (h2 : p) => Decidable.rec q hq (Decidable q => Or (Not p) (Not q))
+  (p : Prop) => (q : Prop) => (hp : Decidable p) => (hq : Decidable q) => Not (And p q) => ((h1 : Not p) -> Or (Not p) (Not q)) => (h2 : p) => ((h1 : Not q) -> Or (Not p) (Not q)) => (h2 : q) => absurd (And p q) (Or (Not p) (Not q)) 
+  (p : Prop) => (q : Prop) => (hp : Decidable p) => (hq : Decidable q) => Not (And p q) => ((h1 : Not p) -> Or (Not p) (Not q)) => (h2 : p) => ((h1 : Not q) -> Or (Not p) (Not q)) => (h2 : q) => And p q => #5
+  (p : Prop) => (q : Prop) => (hp : Decidable p) => (hq : Decidable q) => Not (And p q) => ((h1 : Not p) -> Or (Not p) (Not q)) => (h2 : p) => ((h1 : Not q) -> Or (Not p) (Not q)) => (h2 : q) => And.intro p q #2 h2
+  (p : Prop) => (q : Prop) => (hp : Decidable p) => (hq : Decidable q) => Not (And p q) => ((h1 : Not p) -> Or (Not p) (Not q)) => (h2 : p) => (h1 : Not q) => Or.inr (Not p) (Not q) h1
+  (p : Prop) => (q : Prop) => (hp : Decidable p) => (hq : Decidable q) => Not (And p q) => (h1 : Not p) => Or.inl (Not p) (Not q) h1
+def propext : (a:Prop)->(b:Prop)->Iff a b->Eq Prop a b
+thm Not.elim : (a:Prop)->(b:Sort(u))->Not a->a->b
+  (a : Prop) => (b : Sort(u)) => Not a => a => absurd a b #0 #1
+thm And.elim: (a:Prop)->(b:Prop)->(c:Sort(u))->(f:a->b->c)->(h:And a b)->c
+  (a : Prop) => (b : Prop) => (c : Sort(u)) => (f : a -> b -> c) => (h : And a b) => f (And.left a b h) (And.right a b h)
+thm Iff.elim: (a:Prop)->(b:Prop)->(c:Sort(u))->(f:(a->b)->(b->a)->c)->Iff a b->c
+  (a : Prop) => (b : Prop) => (c : Sort(u)) => (f : (a -> b) -> (b -> a) -> c) => (h : Iff a b) => f (Iff.mp a b h) (Iff.mpr a b h)
+thm Eq.subst : (a:Sort(u))->(motive:a->Prop)->(x:a)->(y:a)->Eq a x y->motive x->motive y
+  (a : Sort(u)) => (motive : a -> Prop) => (x : a) => (y : a) => Eq a x y => motive x => Eq.rec a x y ((z:a)=>Eq a x z=>motive z) #0 #1
+thm Iff.subst : (a:Prop)->(b:Prop)->(p:Prop->Prop)->Iff a b->p a->p b
+  (a : Prop) => (b : Prop) => (p : Prop -> Prop) => Iff a b => Eq.subst Prop p a b 
+  (a : Prop) => (b : Prop) => (p : Prop -> Prop) => propext a b
+thm Not.intro : (a:Prop)->(h:a->False)->Not a
+  (a : Prop) => (h : a -> False) => hthm Not.imp : (a:Prop)->(b:Prop)->Not b->(a->b)->Not a
