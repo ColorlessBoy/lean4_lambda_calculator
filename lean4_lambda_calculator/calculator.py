@@ -11,13 +11,21 @@ from lean4_lambda_calculator.expr import Expr, BoundVar, Const, Lambda, Forall, 
 import time
 import logging
 
-# 配置日志记录到文件
-logging.basicConfig(
-    level=logging.DEBUG,
-    filename="./execution_times.log",
-    filemode="a",  # 追加模式
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
+# 全局日志开关
+LOGGING_ENABLED = False
+
+# 根据日志开关来动态设置日志级别
+if LOGGING_ENABLED:
+    logging.basicConfig(
+        level=logging.INFO,  # 如果启用日志，设置为 INFO 或 DEBUG
+        filename="./execution_times.log",
+        filemode="a",  # 追加模式
+        format="%(asctime)s - %(levelname)s - %(message)s",
+    )
+else:
+    logging.basicConfig(
+        level=logging.CRITICAL,  # 如果禁用日志，设置为 CRITICAL 这样只有最严重的日志会输出
+    )
 
 # 记录函数执行时间的装饰器
 def log_execution_time(func):
