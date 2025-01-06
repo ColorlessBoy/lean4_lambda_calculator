@@ -115,6 +115,8 @@ class Shell:
             parts.append("".join(current).strip())
 
         # Join the parts with "=>", excluding the final result
+        if len(parts) <= 1 :
+            return ""
         return " => ".join(parts[:-1]) + " => "
 
     def run(self):

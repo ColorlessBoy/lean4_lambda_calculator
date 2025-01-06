@@ -13,7 +13,7 @@ import logging
 
 # 配置日志记录到文件
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     filename="./execution_times.log",
     filemode="a",  # 追加模式
     format="%(asctime)s - %(levelname)s - %(message)s",

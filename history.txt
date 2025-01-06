@@ -130,4 +130,172 @@ thm Iff.subst : (a:Prop)->(b:Prop)->(p:Prop->Prop)->Iff a b->p a->p b
   (a : Prop) => (b : Prop) => (p : Prop -> Prop) => Iff a b => Eq.subst Prop p a b 
   (a : Prop) => (b : Prop) => (p : Prop -> Prop) => propext a b
 thm Not.intro : (a:Prop)->(h:a->False)->Not a
-  (a : Prop) => (h : a -> False) => hthm Not.imp : (a:Prop)->(b:Prop)->Not b->(a->b)->Not a
+  (a : Prop) => (h : a -> False) => h
+thm mt : (a:Prop)->(b:Prop)->(h1:a->b)->(h2:Not b)->Not a
+  (a : Prop) => (b : Prop) => (h1 : a -> b) => (h2 : Not b) => (h3 : a) => h2 (h1 h3)
+thm Not.imp : (a:Prop)->(b:Prop)->(h1:Not b)->(h2:a->b)->Not a
+  (a : Prop) => (b : Prop) => (h1 : Not b) => (h2 : a -> b) => mt a b h2 h1
+thm not_congr : (a:Prop)->(b:Prop)->Iff a b->Iff (Not a) (Not b)
+  (a : Prop) => (b : Prop) => Iff a b => Iff.intro (Not a) (Not b)
+  (a : Prop) => (b : Prop) => Iff a b => (Not a -> Not b) => mt a b 
+  (a : Prop) => (b : Prop) => Iff a b => (Not a -> Not b) => Iff.mp a b #1
+  (a : Prop) => (b : Prop) => Iff a b => mt b a
+  (a : Prop) => (b : Prop) => Iff a b => Iff.mpr a b #0
+thm not_not_intro : (p:Prop)->(h:p)->Not (Not p)
+  (p : Prop) => (h : p) => (np : Not p) => np h
+thm not_false : Not False 
+  id False
+thm not_not_not : (a : Prop)->Iff (Not(Not(Not(a)))) (Not a)
+  (a : Prop) => Iff.intro (Not (Not (Not a))) (Not a)
+  (a : Prop) => (Not (Not (Not a)) -> Not a) => Not a => not_not_intro (Not a) #0
+  (a : Prop) => mt a (Not (Not a))
+  not_not_intro
+thm iff_of_true : (a:Prop)->(b:Prop)->(ha:a)->(hb:b)->Iff a b
+  (a : Prop) => (b : Prop) => (ha : a) => (hb : b) => Iff.intro a b
+  (a : Prop) => (b : Prop) => (ha : a) => (hb : b) => (a -> b) => b => ha
+  (a : Prop) => (b : Prop) => (ha : a) => (hb : b) => a => hb
+thm iff_of_false : (a:Prop)->(b:Prop)->(ha:Not a)->(hb:Not b)->Iff a b
+  (a : Prop) => (b : Prop) => (ha : Not a) => (hb : Not b) => Iff.intro a b
+  (a : Prop) => (b : Prop) => (ha : Not a) => (hb : Not b) => (a -> b) => Not.elim b a hb
+  (a : Prop) => (b : Prop) => (ha : Not a) => (hb : Not b) => Not.elim a b ha
+thm iff_true_left : (a:Prop)->(b:Prop)->(ha:a)->Iff (Iff a b) b
+  (a : Prop) => (b : Prop) => (ha : a) => Iff.intro (Iff a b) b
+  (a : Prop) => (b : Prop) => (ha : a) => (Iff a b -> b) => b => iff_of_true a b ha #0
+  (a : Prop) => (b : Prop) => (ha : a) => Iff a b => Iff.mp a b #0 ha
+thm iff_true_right : (a:Prop)->(b:Prop)->(ha:a)->Iff (Iff a b) b
+  (a : Prop) => (b : Prop) => (ha : a) => Iff.intro (Iff a b) b
+  (a : Prop) => (b : Prop) => (ha : a) => (Iff a b -> b) => b => iff_of_true a b ha #0
+  (a : Prop) => (b : Prop) => (ha : a) => Iff a b => Iff.mp a b #0 ha
+thm iff_false_left : (a:Prop)->(b:Prop)->(ha:Not a)->Iff (Iff a b) (Not b)
+  (a : Prop) => (b : Prop) => (ha : Not a) => Iff.intro (Iff a b) (Not b)
+  (a : Prop) => (b : Prop) => (ha : Not a) => (Iff a b -> Not b) => Not b => iff_of_false a b ha #0
+  (a : Prop) => (b : Prop) => (ha : Not a) => Iff a b => Not.imp b a ha
+  (a : Prop) => (b : Prop) => (ha : Not a) => Iff a b => Iff.mpr a b #0
+thm iff_false_right : (a:Prop)->(b:Prop)->(ha:Not a)->Iff (Iff b a) (Not b)
+  (a : Prop) => (b : Prop) => (ha : Not a) => Iff.trans (Iff b a) (Iff a b) (Not b)
+  (a : Prop) => (b : Prop) => (ha : Not a) => Iff (Iff b a) (Iff a b) => iff_false_left a b ha
+  (a : Prop) => (b : Prop) => (ha : Not a) => Iff.comm b a
+thm of_iff_true : (a:Prop)->(h:Iff a True)->a
+  (a : Prop) => (h : Iff a True) => Iff.mpr a True h True.intro 
+thm iff_true_intro : (a:Prop)->(h:a)->Iff a True 
+  (a : Prop) => (h : a) => iff_of_true a True h True.intro
+thm not_of_iff_false : (p:Prop)->Iff p False->Not p
+  (p : Prop) => Iff p False => Iff.mp p False #0
+thm iff_false_intro : (a:Prop)->(h:Not a)->Iff a False
+  (a : Prop) => (h : Not a) => iff_of_false a False h not_false
+thm not_iff_false_intro : (a:Prop)->(h:a)->Iff (Not a) False 
+  (a : Prop) => (h : a) => iff_false_intro (Not a)
+  not_not_intro
+thm not_true : Iff (Not True) False 
+  iff_false_intro (Not True)
+  not_not_intro True True.intro
+thm not_false_iff : Iff (Not False) True 
+  iff_true_intro (Not False) not_false
+def Ne = (a:Sort(u))=>(x:a)=>(y:a)=>Not (Eq a x y)
+thm new_of_not_iff : (a:Prop)->(b:Prop)->Not (Iff a b)->Ne Prop a b
+  (a : Prop) => (b : Prop) => mt (Eq Prop a b) (Iff a b) Iff.of_eq
+thm iff_iff_eq : (a:Prop)->(b:Prop)->Iff (Iff a b) (Eq Prop a b)
+  (a : Prop) => (b : Prop) => Iff.intro (Iff a b) (Eq Prop a b) (Iff.of_eq a b) propext
+thm eq_iff_iff : (a:Prop)->(b:Prop)->Iff (Eq Prop a b) (Iff a b)
+  (a : Prop) => (b : Prop) => Iff.symm (Iff a b) (Eq Prop a b) iff_iff_eq
+thm eq_self_iff_true : (t:Sort(u))->(a:t)->Iff (Eq t a a) True
+  (t : Sort(u)) => (a : t) => iff_true_intro (Eq t a a)
+  (t : Sort(u)) => (a : t) => Eq.refl t a
+thm ne_self_iff_false : (t:Sort(u))->(a:t)->Iff (Ne t a a) False 
+  (t : Sort(u)) => (a : t) => not_iff_false_intro (Eq t a a)
+  (t : Sort(u)) => (a : t) => Eq.refl t a
+thm false_of_true_iff_false : (h : Iff True False)->False
+  (h : Iff True False) => Iff.mp True False h True.intro
+thm false_of_true_eq_false : (h:Eq Prop True False)->False
+  (h : Eq Prop True False) => false_of_true_iff_false
+  Iff.of_eq True False
+thm true_eq_false_of_false : False->(Eq Prop True False)
+  False.elim (Eq Prop True False)
+thm iff_def : (a:Prop)->(b:Prop)->Iff (Iff a b) (And (a->b) (b->a))
+  (a : Prop) => (b : Prop) => Iff.intro (Iff a b) (And (a->b) (b->a))
+  (a : Prop) => (b : Prop) => (Iff a b -> And (a -> b) (b -> a)) => And (a -> b) (b -> a) => Iff.intro a b
+  (a : Prop) => (b : Prop) => (Iff a b -> And (a -> b) (b -> a)) => And (a -> b) (b -> a) => (a -> b) => And.right (a->b) (b->a) #1
+  (a : Prop) => (b : Prop) => (Iff a b -> And (a -> b) (b -> a)) => And (a -> b) (b -> a) => And.left (a->b) (b->a) #0
+  (a : Prop) => (b : Prop) => Iff a b => And.intro (a->b) (b->a)
+  (a : Prop) => (b : Prop) => Iff a b => (a -> b) => Iff.mpr a b #1
+  (a : Prop) => (b : Prop) => Iff a b => Iff.mp a b #0
+thm true_iff_false : Iff (Iff True False) False 
+  iff_false_intro (Iff True False)
+  (h:Iff True False)=>Iff.mp True False h True.intro
+thm false_iff_true : Iff (Iff False True) False
+  iff_false_intro (Iff False True)
+  (h:Iff False True)=>Iff.mpr False True h True.intro
+thm iff_not_self : (a:Prop)->Not (Iff a (Not a))
+  (a : Prop) => Iff.elim a (Not a) False
+  (a : Prop) => (a -> Not a) => (Not a -> a) => (ha : a) => #2 ha ha
+  .giveup
+thm iff_not_self : (a:Prop)->Not (Iff a (Not a))
+  (a : Prop) => Iff.elim a (Not a) False
+  (a : Prop) => (f : a -> Not a) => (g : Not a -> a) => (h : a -> False) => h (g h)
+  (a : Prop) => (f : a -> Not a) => (g : Not a -> a) => (ha : a) => f ha ha
+thm not_not_of_not_imp : (a:Prop)->(b:Prop)->Not (a->b)->Not (Not a)
+  (a : Prop) => (b : Prop) => mt (Not a) (a->b)
+  (a : Prop) => (b : Prop) => Not.elim a b
+thm not_of_not_imp : (a:Prop)->(b:Prop)->Not (a->b)->Not b
+  (a : Prop) => (b : Prop) => mt b (a->b)
+  (a : Prop) => (b : Prop) => b => a => #1
+thm imp_not_self : (a:Prop)->Iff (a->Not a) (Not a)
+  (a : Prop) => Iff.intro (a->Not a) (Not a)
+  (a : Prop) => ((a -> Not a) -> Not a) => Not a => a => #1
+  (a : Prop) => (f : a -> Not a) => (ha : a) => f ha ha
+thm imp_intro : (a:Prop)->(b:Prop)->(h:a)->b->a
+  (a : Prop) => (b : Prop) => (h : a) => b => h
+thm imp_imp_imp : (a:Prop)->(b:Prop)->(c:Prop)->(d:Prop)->(h0:c->a)->(h1:b->d)->(a->b)->(c->d)
+  (a : Prop) => (b : Prop) => (c : Prop) => (d : Prop) => (h0 : c -> a) => (h1 : b -> d) => (h2 : a -> b) => (hc : c) => h1 (h2 (h0 hc)) 
+thm imp_iff_right : (a:Prop)->(b:Prop)->(ha:a)->Iff (a->b) b
+  (a : Prop) => (b : Prop) => (ha : a) => Iff.intro (a->b) b
+  (a : Prop) => (b : Prop) => (ha : a) => ((a -> b) -> b) => b => a => #1
+  (a : Prop) => (b : Prop) => (ha : a) => (a -> b) => #0 ha
+thm imp_true_iff : (a:Sort(u))->Iff (a->True) True
+  (a : Sort(u)) => Iff.intro (a->True) True
+  (a : Sort(u)) => ((a -> True) -> True) => True => a => True.intro
+  (a : Sort(u)) => (a -> True) => True.intro
+thm false_imp_iff : (a:Prop)->Iff (False->a) True
+  (a : Prop) => Iff.intro (False->a) True
+  (a : Prop) => ((False -> a) -> True) => True => False.elim a
+  (a : Prop) => (False -> a) => True.intro
+thm true_imp_iff : (a:Prop)->Iff (True->a) a
+  (a : Prop) => Iff.intro (True->a) a
+  (a : Prop) => ((True -> a) -> a) => a => True => #1
+  (a : Prop) => (True -> a) => #0 True.intro
+thm imp_self : (a:Sort(u))->Iff (a->a) True
+  (a : Sort(u)) => Iff.intro (a->a) True
+  (a : Sort(u)) => ((a -> a) -> True) => True => id a
+  (a : Sort(u)) => (a -> a) => True.intro
+thm imp_false: (a:Prop)->Iff (a->False) (Not a)
+  (a : Prop) => Iff.refl (Not a)
+thm imp.swap : (a:Sort(u))->(b:Sort(v))->(c:Sort(w))->Iff (a->b->c) (b->a->c)
+  (a : Sort(u)) => (b : Sort(v)) => (c : Sort(w)) => Iff.intro (a->b->c) (b->a->c)
+  (a : Sort(u)) => (b : Sort(v)) => (c : Sort(w)) => ((a -> b -> c) -> b -> a -> c) => (b -> a -> c) => a => b => #2 #0 #1
+  (a : Sort(u)) => (b : Sort(v)) => (c : Sort(w)) => (a -> b -> c) => b => a => #2 #0 #1
+thm imp_not_comm : (a:Prop)->(b:Prop)->Iff (a->Not b) (b->Not a)
+  (a : Prop) => (b : Prop) => Iff.intro (a->Not b) (b->Not a)
+  (a : Prop) => (b : Prop) => ((a -> Not b) -> b -> Not a) => (b -> Not a) => a => b => #2 #0 #1
+  (a : Prop) => (b : Prop) => (a -> Not b) => b => a => #2 #0 #1
+thm imp_congr_left : (a:Prop)->(b:Prop)->(c:Prop)->Iff a b->Iff (a->c) (b->c)
+  (a : Prop) => (b : Prop) => (c : Prop) => Iff a b => Iff.intro (a->c) (b->c)
+  (a : Prop) => (b : Prop) => (c : Prop) => Iff a b => ((a -> c) -> b -> c) => (b -> c) => a => b => #2 #0
+  (a : Prop) => (b : Prop) => (c : Prop) => Iff a b => ((a -> c) -> b -> c) => (b -> c) => Iff.mp a b #2
+  (a : Prop) => (b : Prop) => (c : Prop) => Iff a b => (a -> c) => b => a => #2 #0
+  (a : Prop) => (b : Prop) => (c : Prop) => Iff a b => (a -> c) => Iff.mpr a b #2
+thm imp_congr_right : (a:Prop)->(b:Prop)->(c:Prop)->(h:a->Iff b c)->Iff (a->b) (a->c)
+  (a : Prop) => (b : Prop) => (c : Prop) => (h : a -> Iff b c) => Iff.intro (a->b) (a->c)
+  (a : Prop) => (b : Prop) => (c : Prop) => (h : a -> Iff b c) => ((a -> b) -> a -> c) => (a -> c) => a => (c -> b) => #0 (#2 #1)
+  (a : Prop) => (b : Prop) => (c : Prop) => (h : a -> Iff b c) => ((a -> b) -> a -> c) => (a -> c) => a => Iff.mpr b c (h #0)
+  (a : Prop) => (b : Prop) => (c : Prop) => (h : a -> Iff b c) => (a -> b) => a => (b -> c) => #0 (#2 #1)
+  (a : Prop) => (b : Prop) => (c : Prop) => (h : a -> Iff b c) => (a -> b) => a => Iff.mp b c (h #0)
+thm imp_congr_ctx : (a:Prop)->(b:Prop)->(c:Prop)->(d:Prop)->(h1:Iff a c)->(h2:c->Iff b d)->Iff (a->b) (c->d)
+  (a : Prop) => (b : Prop) => (c : Prop) => (d : Prop) => (h1 : Iff a c) => (h2 : c -> Iff b d) => Iff.trans (a->b) (c->b) (c->d)
+  (a : Prop) => (b : Prop) => (c : Prop) => (d : Prop) => (h1 : Iff a c) => (h2 : c -> Iff b d) => Iff (a -> b) (c -> b) => imp_congr_right c b d h2
+  (a : Prop) => (b : Prop) => (c : Prop) => (d : Prop) => (h1 : Iff a c) => (h2 : c -> Iff b d) => imp_congr_left a c b h1
+thm imp_congr : (a:Prop)->(b:Prop)->(c:Prop)->(d:Prop)->(h1:Iff a c)->(h2:Iff b d)->Iff (a->b) (c->d)
+  (a : Prop) => (b : Prop) => (c : Prop) => (d : Prop) => (h1 : Iff a c) => (h2 : Iff b d) => imp_congr_ctx a b c d h1 
+  (a : Prop) => (b : Prop) => (c : Prop) => (d : Prop) => (h1 : Iff a c) => (h2 : Iff b d) => c => h2
+thm imp_iff_not : (a:Prop)->(b:Prop)->(hb:Not b)->Iff (a->b) (Not a)
+  (a : Prop) => (b : Prop) => (hb : Not b) => imp_congr_right a b False 
+  (a : Prop) => (b : Prop) => (hb : Not b) => a => iff_false_intro b hb
