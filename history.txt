@@ -299,3 +299,24 @@ thm imp_congr : (a:Prop)->(b:Prop)->(c:Prop)->(d:Prop)->(h1:Iff a c)->(h2:Iff b 
 thm imp_iff_not : (a:Prop)->(b:Prop)->(hb:Not b)->Iff (a->b) (Not a)
   (a : Prop) => (b : Prop) => (hb : Not b) => imp_congr_right a b False 
   (a : Prop) => (b : Prop) => (hb : Not b) => a => iff_false_intro b hb
+thm congrArg : (a:Sort(u))->(b:Sort(v))->(x:a)->(y:a)->(f:a->b)->Eq a x y->Eq b (f x) (f y) 
+  (a : Sort(u)) => (b : Sort(v)) => (x : a) => (y : a) => (f : a -> b) => Eq.rec a x y ((z:a)=>Eq a x z =>Eq b (f x) (f z))
+  (a : Sort(u)) => (b : Sort(v)) => (x : a) => (y : a) => (f : a -> b) => Eq.refl b (f x)
+thm eq_iff_eq_cancel_left : (a:Sort(u))->(x:a)->(y:a)->Iff ((z:a)->Iff (Eq a z x) (Eq a z y)) (Eq a x y)
+  (a : Sort(u)) => (x : a) => (y : a) => Iff.intro ((z : a) -> Iff (Eq a z x) (Eq a z y)) (Eq a x y)
+  (a : Sort(u)) => (x : a) => (y : a) => (((z : a) -> Iff (Eq a z x) (Eq a z y)) -> Eq a x y) => Eq a x y => (z : a) => Iff.intro (Eq a z x) (Eq a z y)
+  (a : Sort(u)) => (x : a) => (y : a) => (((z : a) -> Iff (Eq a z x) (Eq a z y)) -> Eq a x y) => Eq a x y => (z : a) => (Eq a z x -> Eq a z y) => Eq a z y => Eq.trans a z y x #0 (Eq.symm a x y #3) 
+  (a : Sort(u)) => (x : a) => (y : a) => (((z : a) -> Iff (Eq a z x) (Eq a z y)) -> Eq a x y) => Eq a x y => (z : a) => Eq a z x => Eq.trans a z x y #0 #2 
+  (a : Sort(u)) => (x : a) => (y : a) => ((z : a) -> Iff (Eq a z x) (Eq a z y)) => Iff.mp (Eq a x x) (Eq a x y) (#0 x) 
+  (a : Sort(u)) => (x : a) => (y : a) => ((z : a) -> Iff (Eq a z x) (Eq a z y)) => Eq.refl a x
+thm Eq.mp : (a:Sort(u))->(b:Sort(u))->Eq Sort(u) a b->a->b
+  (a : Sort(u)) => (b : Sort(u)) => Eq Sort(u) a b => Eq.rec Sort(u) a b ((x:Sort(u))=>Eq Sort(u) a x=>(a->x)) (id a) #0
+thm Eq.mpr : (a:Sort(u))->(b:Sort(u))->Eq Sort(u) a b->b->a
+  (a : Sort(u)) => (b : Sort(u)) => Eq Sort(u) a b => Eq.rec Sort(u) a b ((x:Sort(u))=>Eq Sort(u) a x=>(x->a)) (id a) #0
+thm eq_iff_eq_cancel_right : (a:Sort(u))->(x:a)->(y:a)->Iff ((z:a)->Iff (Eq a x z) (Eq a y z)) (Eq a x y)
+  (a : Sort(u)) => (x : a) => (y : a) => Iff.intro ((z : a) -> Iff (Eq a x z) (Eq a y z)) (Eq a x y)
+  (a : Sort(u)) => (x : a) => (y : a) => (((z : a) -> Iff (Eq a x z) (Eq a y z)) -> Eq a x y) => Eq a x y => (z : a) => Iff.intro (Eq a x z) (Eq a y z)
+  (a : Sort(u)) => (x : a) => (y : a) => (((z : a) -> Iff (Eq a x z) (Eq a y z)) -> Eq a x y) => Eq a x y => (z : a) => (Eq a x z -> Eq a y z) => Eq.trans a x y z #2
+  (a : Sort(u)) => (x : a) => (y : a) => (((z : a) -> Iff (Eq a x z) (Eq a y z)) -> Eq a x y) => Eq a x y => (z : a) => Eq.trans a y x z (Eq.symm a x y #1)
+  (a : Sort(u)) => (x : a) => (y : a) => ((z : a) -> Iff (Eq a x z) (Eq a y z)) => Iff.mpr (Eq a x y) (Eq a y y) (#0 y)
+  (a : Sort(u)) => (x : a) => (y : a) => ((z : a) -> Iff (Eq a x z) (Eq a y z)) => Eq.refl a y
