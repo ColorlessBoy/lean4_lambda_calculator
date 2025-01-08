@@ -31,6 +31,10 @@ jobs:
       run: |
         poetry install  # 安装依赖
 
+    - name: Build pip package
+      run: |
+        poetry build
+
     - name: Update pip package
       run: |
         poetry publish --username __token__ --password ${{ secrets.PYPI_TOKEN }}
