@@ -22,12 +22,6 @@ jobs:
       with:
         python-version: '3.11.4'
     
-
-    - name: Install build dependencies
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install setuptools wheel twine  # 安装必要的构建工具
-    
     - name: Install Poetry
       run: |
         curl -sSL https://install.python-poetry.org | python3 -
@@ -39,9 +33,4 @@ jobs:
 
     - name: Update pip package
       run: |
-        # Add your command to update the pip package here
-        python setup.py sdist bdist_wheel
-        twine upload dist/*
-      env:
-        TWINE_USERNAME: ${{ secrets.TWINE_USERNAME }}
-        TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
+        poetry publish --username __token__ --password ${{ secrets.PYPI_TOKEN }}

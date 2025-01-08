@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "lean4-lambda-calculator"
-version = "0.1.0"
+version = "0.1.1"
 description = ""
 authors = ["penglingwei <penglingwei@zju.edu.cn>"]
 readme = "README.md"
