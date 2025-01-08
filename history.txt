@@ -31,11 +31,11 @@ thm absurd : (a: Prop) -> (b: Sort(u)) -> (h1: a) -> (h2: Not a) -> b
   (a : Prop) => (b : Sort(u)) => (h1 : a) => (h2 : Not a) => h2 h1
 def Eq : (a : Sort(u)) -> a -> a -> Prop
 def Eq.refl : (a : Sort(u)) -> (b : a) -> Eq a b b
-def Eq.rec : (a : Sort(u_1)) -> (b : a) -> (c : a) -> (motive : (x : a) -> Eq a b x -> Sort(u)) -> motive b (Eq.refl a b) -> (t: Eq a b c) -> motive c t
+def Eq.rec : (a : Sort(u_1)) -> (b : a) -> (motive : (x : a) -> Eq a b x -> Sort(u)) -> motive b (Eq.refl a b) -> (c : a) -> (t: Eq a b c) -> motive c t
 thm Eq.symm : (a: Sort(u)) -> (x : a) -> (y : a) -> Eq a x y -> Eq a y x
-  (a : Sort(u)) => (x : a) => (y : a) => Eq a x y => Eq.rec a x y ((b : a) => Eq a x b => Eq a b x) (Eq.refl a x) #0  
+  (a : Sort(u)) => (x : a) => (y : a) => Eq a x y => Eq.rec a x ((b : a) => Eq a x b => Eq a b x) (Eq.refl a x) y #0  
 thm Eq.trans : (a : Sort(u)) -> (x : a) -> (y : a) -> (z : a) -> Eq a x y -> Eq a y z -> Eq a x z 
-  (a : Sort(u)) => (x : a) => (y : a) => (z : a) => Eq a x y => Eq a y z => Eq.rec a y z ((b : a) => Eq a y b => Eq a x b) #1 #0
+  (a : Sort(u)) => (x : a) => (y : a) => (z : a) => Eq a x y => Eq a y z => Eq.rec a y ((b : a) => Eq a y b => Eq a x b) #1 z #0
 thm Or.resolve_left : (a : Prop) -> (b : Prop) -> (h : Or a b) -> (na : Not a) -> b 
   (a : Prop) => (b : Prop) => (h : Or a b) => (na : Not a) => Or.elim a b b h
   (a : Prop) => (b : Prop) => (h : Or a b) => (na : Not a) => (a -> b) => id b
@@ -53,7 +53,7 @@ thm Or.neg_resolve_right : (a : Prop) -> (b : Prop) -> (h : Or a (Not b)) -> (hb
   (a : Prop) => (b : Prop) => (h : Or a (Not b)) => (hb : b) => (a -> a) => Not b => absurd b a hb #0
   (a : Prop) => (b : Prop) => (h : Or a (Not b)) => (hb : b) => a => #0
 thm Iff.of_eq : (a : Prop) -> (b : Prop) -> Eq Prop a b -> Iff a b
-  (a : Prop) => (b : Prop) => (h : Eq Prop a b) => Eq.rec Prop a b ((c : Prop) => Eq Prop a c => Iff a c) (Iff.refl a) h 
+  (a : Prop) => (b : Prop) => (h : Eq Prop a b) => Eq.rec Prop a ((c : Prop) => Eq Prop a c => Iff a c) (Iff.refl a) b h 
 thm Iff.trans : (a : Prop) -> (b : Prop) -> (c : Prop) -> (h1 : Iff a b) -> (h2 : Iff b c) -> Iff a c
   (a : Prop) => (b : Prop) => (c : Prop) => (h1 : Iff a b) => (h2 : Iff b c) => Iff.intro a c
   (a : Prop) => (b : Prop) => (c : Prop) => (h1 : Iff a b) => (h2 : Iff b c) => (a -> c) => c => Iff.mpr a b h1
@@ -125,7 +125,7 @@ thm And.elim: (a:Prop)->(b:Prop)->(c:Sort(u))->(f:a->b->c)->(h:And a b)->c
 thm Iff.elim: (a:Prop)->(b:Prop)->(c:Sort(u))->(f:(a->b)->(b->a)->c)->Iff a b->c
   (a : Prop) => (b : Prop) => (c : Sort(u)) => (f : (a -> b) -> (b -> a) -> c) => (h : Iff a b) => f (Iff.mp a b h) (Iff.mpr a b h)
 thm Eq.subst : (a:Sort(u))->(motive:a->Prop)->(x:a)->(y:a)->Eq a x y->motive x->motive y
-  (a : Sort(u)) => (motive : a -> Prop) => (x : a) => (y : a) => Eq a x y => motive x => Eq.rec a x y ((z:a)=>Eq a x z=>motive z) #0 #1
+  (a : Sort(u)) => (motive : a -> Prop) => (x : a) => (y : a) => Eq a x y => motive x => Eq.rec a x ((z:a)=>Eq a x z=>motive z) #0 y #1
 thm Iff.subst : (a:Prop)->(b:Prop)->(p:Prop->Prop)->Iff a b->p a->p b
   (a : Prop) => (b : Prop) => (p : Prop -> Prop) => Iff a b => Eq.subst Prop p a b 
   (a : Prop) => (b : Prop) => (p : Prop -> Prop) => propext a b
@@ -193,11 +193,15 @@ thm not_false_iff : Iff (Not False) True
   iff_true_intro (Not False) not_false
 def Ne = (a:Sort(u))=>(x:a)=>(y:a)=>Not (Eq a x y)
 thm new_of_not_iff : (a:Prop)->(b:Prop)->Not (Iff a b)->Ne Prop a b
-  (a : Prop) => (b : Prop) => mt (Eq Prop a b) (Iff a b) Iff.of_eq
+  (a : Prop) => (b : Prop) => mt (Eq Prop a b) (Iff a b)
+  Iff.of_eq
 thm iff_iff_eq : (a:Prop)->(b:Prop)->Iff (Iff a b) (Eq Prop a b)
-  (a : Prop) => (b : Prop) => Iff.intro (Iff a b) (Eq Prop a b) (Iff.of_eq a b) propext
+  (a : Prop) => (b : Prop) => Iff.intro (Iff a b) (Eq Prop a b)
+  (a : Prop) => (b : Prop) => (Iff a b -> Eq Prop a b) => Iff.of_eq a b
+  propext
 thm eq_iff_iff : (a:Prop)->(b:Prop)->Iff (Eq Prop a b) (Iff a b)
-  (a : Prop) => (b : Prop) => Iff.symm (Iff a b) (Eq Prop a b) iff_iff_eq
+  (a : Prop) => (b : Prop) => Iff.symm (Iff a b) (Eq Prop a b) 
+  iff_iff_eq
 thm eq_self_iff_true : (t:Sort(u))->(a:t)->Iff (Eq t a a) True
   (t : Sort(u)) => (a : t) => iff_true_intro (Eq t a a)
   (t : Sort(u)) => (a : t) => Eq.refl t a
@@ -282,7 +286,7 @@ thm imp_congr_left : (a:Prop)->(b:Prop)->(c:Prop)->Iff a b->Iff (a->c) (b->c)
   (a : Prop) => (b : Prop) => (c : Prop) => Iff a b => ((a -> c) -> b -> c) => (b -> c) => a => b => #2 #0
   (a : Prop) => (b : Prop) => (c : Prop) => Iff a b => ((a -> c) -> b -> c) => (b -> c) => Iff.mp a b #2
   (a : Prop) => (b : Prop) => (c : Prop) => Iff a b => (a -> c) => b => a => #2 #0
-  (a : Prop) => (b : Prop) => (c : Prop) => Iff a b => (a -> c) => Iff.mpr a b #2
+  (a : Prop) => (b : Prop) => (c : Prop) => Iff a b => (a -> c) => Iff.mpr a b #1
 thm imp_congr_right : (a:Prop)->(b:Prop)->(c:Prop)->(h:a->Iff b c)->Iff (a->b) (a->c)
   (a : Prop) => (b : Prop) => (c : Prop) => (h : a -> Iff b c) => Iff.intro (a->b) (a->c)
   (a : Prop) => (b : Prop) => (c : Prop) => (h : a -> Iff b c) => ((a -> b) -> a -> c) => (a -> c) => a => (c -> b) => #0 (#2 #1)
@@ -300,8 +304,7 @@ thm imp_iff_not : (a:Prop)->(b:Prop)->(hb:Not b)->Iff (a->b) (Not a)
   (a : Prop) => (b : Prop) => (hb : Not b) => imp_congr_right a b False 
   (a : Prop) => (b : Prop) => (hb : Not b) => a => iff_false_intro b hb
 thm congrArg : (a:Sort(u))->(b:Sort(v))->(x:a)->(y:a)->(f:a->b)->Eq a x y->Eq b (f x) (f y) 
-  (a : Sort(u)) => (b : Sort(v)) => (x : a) => (y : a) => (f : a -> b) => Eq.rec a x y ((z:a)=>Eq a x z =>Eq b (f x) (f z))
-  (a : Sort(u)) => (b : Sort(v)) => (x : a) => (y : a) => (f : a -> b) => Eq.refl b (f x)
+  (a : Sort(u)) => (b : Sort(v)) => (x : a) => (y : a) => (f : a -> b) => Eq.rec a x ((z:a)=>Eq a x z =>Eq b (f x) (f z)) (Eq.refl b (f x)) y
 thm eq_iff_eq_cancel_left : (a:Sort(u))->(x:a)->(y:a)->Iff ((z:a)->Iff (Eq a z x) (Eq a z y)) (Eq a x y)
   (a : Sort(u)) => (x : a) => (y : a) => Iff.intro ((z : a) -> Iff (Eq a z x) (Eq a z y)) (Eq a x y)
   (a : Sort(u)) => (x : a) => (y : a) => (((z : a) -> Iff (Eq a z x) (Eq a z y)) -> Eq a x y) => Eq a x y => (z : a) => Iff.intro (Eq a z x) (Eq a z y)
@@ -310,9 +313,9 @@ thm eq_iff_eq_cancel_left : (a:Sort(u))->(x:a)->(y:a)->Iff ((z:a)->Iff (Eq a z x
   (a : Sort(u)) => (x : a) => (y : a) => ((z : a) -> Iff (Eq a z x) (Eq a z y)) => Iff.mp (Eq a x x) (Eq a x y) (#0 x) 
   (a : Sort(u)) => (x : a) => (y : a) => ((z : a) -> Iff (Eq a z x) (Eq a z y)) => Eq.refl a x
 thm Eq.mp : (a:Sort(u))->(b:Sort(u))->Eq Sort(u) a b->a->b
-  (a : Sort(u)) => (b : Sort(u)) => Eq Sort(u) a b => Eq.rec Sort(u) a b ((x:Sort(u))=>Eq Sort(u) a x=>(a->x)) (id a) #0
+  (a : Sort(u)) => (b : Sort(u)) => Eq Sort(u) a b => Eq.rec Sort(u) a ((x:Sort(u))=>Eq Sort(u) a x=>(a->x)) (id a) b #0
 thm Eq.mpr : (a:Sort(u))->(b:Sort(u))->Eq Sort(u) a b->b->a
-  (a : Sort(u)) => (b : Sort(u)) => Eq Sort(u) a b => Eq.rec Sort(u) a b ((x:Sort(u))=>Eq Sort(u) a x=>(x->a)) (id a) #0
+  (a : Sort(u)) => (b : Sort(u)) => Eq Sort(u) a b => Eq.rec Sort(u) a ((x:Sort(u))=>Eq Sort(u) a x=>(x->a)) (id a) b #0
 thm eq_iff_eq_cancel_right : (a:Sort(u))->(x:a)->(y:a)->Iff ((z:a)->Iff (Eq a x z) (Eq a y z)) (Eq a x y)
   (a : Sort(u)) => (x : a) => (y : a) => Iff.intro ((z : a) -> Iff (Eq a x z) (Eq a y z)) (Eq a x y)
   (a : Sort(u)) => (x : a) => (y : a) => (((z : a) -> Iff (Eq a x z) (Eq a y z)) -> Eq a x y) => Eq a x y => (z : a) => Iff.intro (Eq a x z) (Eq a y z)
