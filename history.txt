@@ -323,3 +323,4 @@ thm eq_iff_eq_cancel_right : (a:Sort(u))->(x:a)->(y:a)->Iff ((z:a)->Iff (Eq a x 
   (a : Sort(u)) => (x : a) => (y : a) => (((z : a) -> Iff (Eq a x z) (Eq a y z)) -> Eq a x y) => Eq a x y => (z : a) => Eq.trans a y x z (Eq.symm a x y #1)
   (a : Sort(u)) => (x : a) => (y : a) => ((z : a) -> Iff (Eq a x z) (Eq a y z)) => Iff.mpr (Eq a x y) (Eq a y y) (#0 y)
   (a : Sort(u)) => (x : a) => (y : a) => ((z : a) -> Iff (Eq a x z) (Eq a y z)) => Eq.refl a y
+  

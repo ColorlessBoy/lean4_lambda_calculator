@@ -70,6 +70,44 @@ expr_grammar = r"""
     %ignore WS
 """
 
+SYMBOL_MAP = {
+    # Keywords
+    "DEF": "'def' (used to define a type or equation)",
+    "THM": "'thm' (used to define a theorem)",
+    "SORT": "'Sort' (used to define a type hierarchy)",
+
+    # Symbols
+    "LPAR": "'(' (left parenthesis)",
+    "RPAR": "')' (right parenthesis)",
+    "HASH": "'#' (used for bound variables)",
+
+    # Anonymous rules (regex or unnamed tokens)
+    "__ANON_0": "a numeric literal (e.g., 0, 1, 42)",
+    "__ANON_1": "a level identifier (e.g., 'u', 'u+1')",
+    "__ANON_2": "a keyword like 'Max'",
+    "__ANON_3": "an identifier (e.g., a variable or function name)",
+
+    # Basic tokens from common imports
+    "INT": "an integer (e.g., 0, 1, -42)",
+    "WS": "whitespace (ignored)",
+    "identifier": "an identifier (e.g., variable or function name)",
+
+    # Operators and connectors
+    "COLON": "':' (used to specify types)",
+    "ARROW": "'->' (used in Forall and functions)",
+    "LAMBDA_ARROW": "'=>' (used in lambda expressions)",
+
+    # Levels
+    "MAX": "'Max' (used for maximum level expressions)",
+    "SUCC": "'+' (used for successor levels)",
+
+    # Grammar-specific
+    "appexpr": "an application expression",
+    "lambda": "a lambda expression",
+    "forall": "a forall expression",
+    "primary": "a primary expression (Sort, Const, or BoundVar)"
+}
+
 # 定义 Transformer
 class ExprTransformer(Transformer):
     # 默认行为
@@ -150,9 +188,12 @@ class Parser:
             return self.handle_error(e)
 
     def handle_error(self, e: UnexpectedInput):
-        expected = e.expected  # 获取预期的 token
-        line, column = e.line, e.column  # 出错的位置
-        message = f"Syntax error at line {line}, column {column}. Expected one of: {expected}"
+        expected = ", ".join(SYMBOL_MAP.get(token, token) for token in e.expected)
+        message = (
+            f"Syntax error at line {e.line}, column {e.column}.\n"
+            f"Expected one of: {expected}\n"
+            f"Context:\n{e.get_context(e.text, 40)}\n{' ' * (e.column - 1)}^"
+        )
         return message
 
 if __name__ == "__main__":

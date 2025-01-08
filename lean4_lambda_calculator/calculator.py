@@ -6,7 +6,7 @@ License: MIT
 """
 
 from lean4_lambda_calculator.level import Level, SuccLevel, MaxLevel, PreLevel, is_solvable
-from lean4_lambda_calculator.expr import Expr, BoundVar, Const, Lambda, Forall, App, Sort, Arg, expr_rename_level, expr_todef, get_sort_eq_conditions
+from lean4_lambda_calculator.expr import Expr, BoundVar, Const, Lambda, Forall, App, Sort, Arg, expr_rename_level, expr_todef, get_sort_eq_conditions, print_expr_by_name
 
 import time
 import logging
@@ -98,7 +98,8 @@ def calc(expr: Expr, context: list[Arg] = None, type_pool: dict[str, Expr] = Non
                 raise ValueError(f"Function application to a non-function: {func_type}")
             func_type = def_func_type
         if not type_no_check and not DefEq(func_type.var_type, arg_type, context, type_pool, def_pool, used_free_symbols):
-            raise ValueError(f"Type mismatch: want {func_type.var_type}, get {arg_type}")
+            context_info = ','.join([f"#{idx}:{print_expr_by_name(expr)}" for idx, expr in enumerate(context)])
+            raise ValueError(f"Type mismatch: want {func_type.var_type}, get {arg_type}. Context=[{context_info}]")
         tmp = unshift_expr(func_type.body, head=arg, offset=0)
         unshifted_funcbody_type, _ = calc(tmp, context, type_pool, def_pool, used_free_symbols)
         if isinstance(func, Lambda):

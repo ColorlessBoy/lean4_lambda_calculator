@@ -25,6 +25,7 @@ class Shell:
         if os.path.exists(self.history_file):
             with open(self.history_file, "r") as f:
                 for line in f:
+                    print(">>" if not self.is_in_proof else "[Proof]>>", line.strip())
                     self.execute(line.strip())
 
     def save_history(self, code: str):
@@ -32,6 +33,8 @@ class Shell:
             f.write(code + "\n")
 
     def execute(self, code: str):
+        if len(code) == 0:
+            return False
         if code == ".giveup":
             self.is_in_proof = False
             return True
@@ -125,7 +128,7 @@ class Shell:
                 completer = WordCompleter(['def', 'thm', '->', '=>', '.giveup', '.exit'] + list(self.type_pool.keys()))
                 # 提示用户输入
                 code = prompt(
-                    ">> " if not self.is_in_proof else "[Proof] >> ", 
+                    ">> " if not self.is_in_proof else "[Proof]>> ", 
                     default=self.get_default_input(),           # 默认值，显示在输入框中
                     completer=completer,             # 自动补全（可选）
                     complete_style=CompleteStyle.READLINE_LIKE,  # 补全风格
