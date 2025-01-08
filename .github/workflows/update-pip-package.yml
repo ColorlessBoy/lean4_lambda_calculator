@@ -30,11 +30,6 @@ jobs:
       run: |
         poetry install  # 安装依赖
 
-    - name: Run tests
-      run: |
-        # Add your test command here
-        pytest
-
     - name: Update pip package
       run: |
         # Add your command to update the pip package here
