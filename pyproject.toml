@@ -18,6 +18,9 @@ prompt-toolkit = "^3.0.48"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.4"
+setuptools = "^75.7.0"
+wheel = "^0.45.1"
+twine = "^6.0.1"
 
 [build-system]
 requires = ["poetry-core"]
