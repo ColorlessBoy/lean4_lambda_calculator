@@ -64,7 +64,7 @@ expr_grammar = r"""
          | "Max" "(" level "," level ")"  -> maxlevel
          | "IMax" "(" level "," level ")"  -> imaxlevel
     
-    identifier: /[\w_\.]+/ -> identifier
+    identifier: /[\w_\.']+/ -> identifier
 
     %import common.INT
     %import common.WS
@@ -232,8 +232,12 @@ if __name__ == "__main__":
     thm2, thm2_type = calc(parsed_thm2.expr, [], {"Prop":Sort(1)}, {"Prop":Sort(0)})
     print(thm2_type)
 
-    thm3 = "def Fun : (a:Sort(u))->Sort(v)"
+    thm3 = "def Fun : (a:Sort(u))->b"
     parsed_thm3 = parser.parse(thm3)
     assert isinstance(parsed_thm3, TypeDef)
-    thm3_type, thm3_type_type = calc(parsed_thm3.type, [], {"Prop":Sort(1)}, {"Prop":Sort(0)})
+    thm3_type, thm3_type_type = calc(parsed_thm3.type, [], {"Prop":Sort(1), "b":Sort("v")}, {"Prop":Sort(0)})
     print(thm3_type, ':', thm3_type_type)
+
+    thm4 = "Sort(u_1) => (#0 -> Sort(u_2)) => (#1 -> #1 #0 -> Prop) => (#2 -> #2 #0 -> Prop) => (#3 -> #3 #0 -> Iff (#3 #1 #0) (#2 #1 #0)) => forall_congr' #4 (#4 => (#4 #0 -> #4 #1 #0)) (#4 => (#4 #0 -> #3 #1 #0)) (#4 => forall_congr' (#4 #0) (#3 #0) (#2 #0) (#1 #0))"
+    parsed_thm4 = parser.parse(thm4)
+    print(parsed_thm4)

@@ -78,7 +78,7 @@ def test_sort_with_level():
     expr = Sort(level)
     assert expr.level == level
     assert expr.predicate == 100
-    assert repr(expr) == "S(1)"
+    assert repr(expr) == "Sort(1)"
 
 def test_nested_lambda():
     expr = Lambda(Const("Nat"), Lambda(Const("Nat"), BoundVar(1)))

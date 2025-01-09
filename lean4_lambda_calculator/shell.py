@@ -7,17 +7,18 @@ from prompt_toolkit import prompt
 from prompt_toolkit.shortcuts import CompleteStyle
 from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.history import FileHistory
+import argparse  # 用于解析命令行参数
 
 init(autoreset=True)
 
 class Shell:
-    def __init__(self):
+    def __init__(self, history_file="./history.txt"):
         self.parser = Parser()
         self.type_pool: dict[str, Expr] = {}
         self.def_pool: dict[str, Expr] = {}
         self.is_in_proof = False
         self.goals: list[Expr] = []
-        self.history_file = "./history.txt"
+        self.history_file = history_file  # 使用传入的 history_file 参数
         self.load_history()
         self.history = FileHistory("./prompt_history.txt")
 
@@ -25,7 +26,7 @@ class Shell:
         if os.path.exists(self.history_file):
             with open(self.history_file, "r") as f:
                 for line in f:
-                    print(">>" if not self.is_in_proof else "[Proof]>>", line.strip())
+                    print(">>" if not self.is_in_proof else "[Proof] >>", line.strip())
                     self.execute(line.strip())
 
     def save_history(self, code: str):
@@ -41,7 +42,7 @@ class Shell:
         expr = self.parser.parse(code)
         if isinstance(expr, str):
             # error
-            print(expr)
+            print("[Error]", expr)
             return False
         if self.is_in_proof:
             if isinstance(expr, Expr):
@@ -72,7 +73,7 @@ class Shell:
                 self.type_pool[expr.name] = expr_clean_all_names(expr_type)
                 print(Fore.CYAN + expr.name, ":" + Style.RESET_ALL, print_expr_by_name(expr_type), Fore.CYAN + "=" + Style.RESET_ALL, print_expr_by_name(expr.expr))
             except Exception as e:
-                print(e)
+                print("[Error]", e)
                 return False
         elif isinstance(expr, TypeDef):
             self.type_pool[expr.name] = expr_clean_all_names(expr.type)
@@ -89,7 +90,7 @@ class Shell:
                 expr, expr_type = calc(expr, [], self.type_pool, self.def_pool, None)
                 print(print_expr_by_name(expr_type))
             except Exception as e:
-                print(e)
+                print("[Error]", e)
                 return False
         return True
     
@@ -137,7 +138,7 @@ class Shell:
                 completer = WordCompleter(['def', 'thm', '->', '=>', '.giveup', '.exit'] + list(self.type_pool.keys()))
                 # 提示用户输入
                 code = prompt(
-                    ">> " if not self.is_in_proof else "[Proof]>> ", 
+                    ">> " if not self.is_in_proof else "[Proof] >> ", 
                     default=self.get_default_input(),           # 默认值，显示在输入框中
                     completer=completer,             # 自动补全（可选）
                     complete_style=CompleteStyle.READLINE_LIKE,  # 补全风格
@@ -158,6 +159,9 @@ class Shell:
             print("Exiting...")
 
 if __name__ == "__main__":
-    shell = Shell()
-    shell.run()
+    parser = argparse.ArgumentParser(description="Lean4 Shell")
+    parser.add_argument("--history", type=str, default="./history.txt", help="Path to the history file")
+    args = parser.parse_args()
 
+    shell = Shell(history_file=args.history)
+    shell.run()

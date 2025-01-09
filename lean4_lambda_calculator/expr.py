@@ -301,7 +301,15 @@ def _get_new_name(expr_type: Expr, used_names: set[str]) -> tuple[str, int]:
                 return name
             index += 1
         else:
-            name = chr(ord('a') + index)
+            # 小写字母 a-z
+            if index < 26:
+                name = chr(ord('a') + index)
+            # 大写字母 A-Z
+            elif index < 52:
+                name = chr(ord('A') + (index - 26))
+            # 使用 x 加下标
+            else:
+                name = f"x{index - 52}"
             if name not in used_names:
                 used_names.add(name)
                 return name

@@ -67,6 +67,26 @@ def getPrefixLevel (e : Expr) : Nat :=
   | Expr.mdata _ _ => 100
   | Expr.proj _ _ _ => 100
 
+partial def printLevel (lvl: Level) : String :=
+  match lvl with
+  | .zero   =>
+    s!"0"
+  | .succ u =>
+    let ls := printLevel u
+    s!"{ls}+1"
+  | .max  l1 l2 =>
+    let ls1 := printLevel l1
+    let ls2 := printLevel l2
+    s!"Max({ls1},{ls2})"
+  | .imax l1 l2 =>
+    let ls1 := printLevel l1
+    let ls2 := printLevel l2
+    s!"IMax({ls1},{ls2})"
+  | .param name =>
+    s!"{name}"
+  | .mvar _ =>
+    toString lvl
+
 -- 将表达式转化为前缀表达式的字符串
 partial def toPrefixExpr (e : Expr) (maxExprSize: Nat) : MetaM String := do
   let size := getExprSize e maxExprSize
@@ -79,7 +99,8 @@ partial def toPrefixExpr (e : Expr) (maxExprSize: Nat) : MetaM String := do
   | Expr.sort lvl =>
     if lvl == 0 then
       return "Prop"
-    pure s!"Sort({lvl})"
+    let ls := printLevel lvl
+    pure s!"Sort({ls})"
   | Expr.const n _ => pure s!"{n}"
   | Expr.app f arg =>
     let mut fStr ← toPrefixExpr f maxExprSize

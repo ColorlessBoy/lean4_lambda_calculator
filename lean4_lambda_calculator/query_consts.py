@@ -20,8 +20,14 @@ def execute(cmd: str | list[str]) -> tuple[str, str]:
         Optional[Tuple[str, str]]: The command's output, including stdout and stderr (None if ``capture_output == False``).
     """
     res = subprocess.run(cmd, shell=True, capture_output=True, check=False)
-    output = res.stdout.decode()
-    error = res.stderr.decode()
+    try:
+        output = res.stdout.decode("utf-8")
+    except UnicodeDecodeError:
+        output = res.stdout.decode("utf-8", errors="replace")
+    try:
+        error = res.stderr.decode("utf-8")
+    except UnicodeDecodeError:
+        error = res.stderr.decode("utf-8", errors="replace")
     return output.strip(), error.strip()
 
 
@@ -30,7 +36,7 @@ def query_const(name: str) -> tuple[str, str]:
         return "def Prop = Sort(0)", ""
     if name.isdigit():
         return f"def {name} : Nat", ""
-    cmd = f"lake env lean --run lean4_lambda_calculator/QueryConst.lean {name}"
+    cmd = f'lake env lean --run lean4_lambda_calculator/QueryConst.lean "{name}"'
     return execute(cmd)
 
 
@@ -59,8 +65,7 @@ class QueryPool:
             return
         codes, error = query_const(name)
         if len(error) > 0:
-            print(error)
-            print("failed", name)
+            print("failed", name, error)
             return
         codes = codes.strip()
         if len(codes) == 0:
@@ -111,8 +116,8 @@ class QueryPool:
 
 
 def extract_theorem_list(filepath: str):
-    namespaces_pattern = re.compile(r"^\s*namespace\s+([\w.]+)", re.MULTILINE)  # 匹配 open 命令
-    theorem_pattern = re.compile(r"^\s*theorem\s+([\w.]+)", re.MULTILINE)
+    namespaces_pattern = re.compile(r"^\s*namespace\s+([\w.']+)", re.MULTILINE)  # 匹配 open 命令
+    theorem_pattern = re.compile(r"^\s*(theorem|lemma)\s+([\w.']+)", re.MULTILINE)
     namespace = None
     names = []
     in_comment = False
@@ -134,9 +139,9 @@ def extract_theorem_list(filepath: str):
                 continue
             thms = theorem_pattern.findall(line)
             if namespace is not None:
-                names.extend([namespace + "." + thm for thm in thms])
+                names.extend([namespace + "." + thm for _, thm in thms])
             else:
-                names.extend(thms)
+                names.extend([thm for _, thm in thms])
     return names
 
 if __name__ == "__main__":
