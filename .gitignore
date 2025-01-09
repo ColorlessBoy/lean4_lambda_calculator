@@ -6,3 +6,4 @@ __pycache__
 *.log
 *.egg*
 dist
+query_file.txt

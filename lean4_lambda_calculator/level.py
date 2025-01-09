@@ -1,16 +1,18 @@
-from sympy import symbols, Eq, solve, Max, Expr as SymExpr, simplify, satisfiable, sympify
+from sympy import symbols, Eq, solve, Max, Expr as SymExpr, simplify, satisfiable, sympify, Piecewise
 from typing import Union, List, Set
 import re
 
-# LevelType 可以是整数或 sympy 表达式
-LevelType = Union[int, SymExpr]
+# LevelArgType 可以是整数或 sympy 表达式
+LevelArgType = Union[str, int, SymExpr, 'Level']
 
 class Level:
-    def __init__(self, level: LevelType | str) -> None:
+    def __init__(self, level: LevelArgType) -> None:
         if isinstance(level, str):
             self.symbol = symbols(level, integer=True, nonnegative=True)
-        else:
+        elif isinstance(level, SymExpr) or isinstance(level, int):
             self.symbol: SymExpr = simplify(level)  # 将输入简化为 sympy 表达式
+        else:
+            self.symbol = level.symbol
 
     def __repr__(self) -> str:
         return str(self.symbol)
@@ -48,15 +50,40 @@ class Level:
             return True, solution
         return False, None
 
-def SuccLevel(level: Level) -> Level:
-    return Level(level.symbol + 1)
+class SuccLevel(Level):
+    def __init__(self, level: LevelArgType) -> None:
+        self.origin_symbol = Level(level).symbol
+        self.symbol = simplify(self.origin_symbol + 1)
 
-def MaxLevel(left: Level, right: Level) -> Level:
-    return Level(Max(left.symbol, right.symbol))
+    def __repr__(self) -> str:
+        return f"{self.origin_symbol}+1"
 
 class PreLevel(Level):
-    def __init__(self, level: Level) -> None:
-        super().__init__(level.symbol - 1)
+    def __init__(self, level: LevelArgType) -> None:
+        self.origin_symbol = Level(level).symbol
+        self.symbol = simplify(self.origin_symbol - 1)
+
+class MaxLevel(Level):
+    def __init__(self, left: LevelArgType, right: LevelArgType) -> None:
+        self.left = Level(left).symbol
+        self.right = Level(right).symbol
+        self.symbol = simplify(Max(self.left, self.right))
+    
+    def __repr__(self) -> str:
+        return f"Max({self.left},{self.right})"
+
+class IMaxLevel(Level):
+    def __init__(self, left: LevelArgType, right: LevelArgType) -> None:
+        self.left = Level(left).symbol
+        self.right = Level(right).symbol
+        self.symbol = simplify(Piecewise(
+            (0, right.symbol == 0), # 如果 b = 0, 则返回 0
+            (Max(left.symbol, right.symbol), True),  # 如果 b ≠ 0，返回 max(succ(a), b)
+        ))
+    
+    def __repr__(self) -> str:
+        return super().__repr__()
+        # return f"IMax({self.left}, {self.right})"
 
 def level_subs_symbols(level: Level, used_free_symbols: set[str], renamed_symbols: dict[str, str]) -> Level:
     rst_symbol = level.symbol
@@ -144,6 +171,16 @@ def _parse_level(tokens: List[str]) -> Level:
         assert tokens[0] == ')', "Max does not ended with `)`"
         tokens.pop(0)
         return MaxLevel(left, right)
+    elif token == "IMax":
+        assert tokens[0] == '(', "Max does not followed by `(`"
+        tokens.pop(0)
+        left = _parse_level(tokens)
+        assert tokens[0] == ',', "need a comma `,`"
+        tokens.pop(0)
+        right = _parse_level(tokens)
+        assert tokens[0] == ')', "Max does not ended with `)`"
+        tokens.pop(0)
+        return IMaxLevel(left, right)
     else:
         if len(tokens) >= 2 and tokens[0] == "+" and tokens[1] == "1":
             tokens.pop(0)

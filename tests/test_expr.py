@@ -5,7 +5,7 @@ def test_sort():
     expr = Sort(0)
     assert expr.level == Level(0)
     assert expr.predicate == 100
-    assert repr(expr) == "S(0)"
+    assert repr(expr) == "Sort(0)"
 
 def test_const():
     expr = Const("Nat")

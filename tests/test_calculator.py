@@ -33,7 +33,7 @@ def test_calc_app(type_pool):
 
 def test_get_level(type_pool):
     expr = Lambda(Const("Prop"), App(Const("Iff"), BoundVar(0)))
-    level = get_level(expr, [], type_pool)
+    level = get_level(expr, [], type_pool, def_pool={})
     assert level == Level(-1)
 
 def test_iff_refl(type_pool):

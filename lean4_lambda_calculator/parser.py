@@ -1,6 +1,6 @@
 from lark import Lark, Transformer, UnexpectedInput
 from lean4_lambda_calculator.expr import BoundVar, Const, Lambda, Forall, App, Sort, Arg, print_expr_by_name, Expr, const_to_boundvar, set_boundvar_name
-from lean4_lambda_calculator.level import SuccLevel, MaxLevel, Level
+from lean4_lambda_calculator.level import SuccLevel, MaxLevel, IMaxLevel, Level
 from lean4_lambda_calculator.calculator import calc
 
 class TypeDef:
@@ -62,8 +62,9 @@ expr_grammar = r"""
          | INT -> unwrap
          | identifier -> unwrap
          | "Max" "(" level "," level ")"  -> maxlevel
+         | "IMax" "(" level "," level ")"  -> imaxlevel
     
-    identifier: /[a-zA-Z_\.][\w_\.]*/ -> identifier
+    identifier: /[\w_\.]+/ -> identifier
 
     %import common.INT
     %import common.WS
@@ -126,6 +127,9 @@ class ExprTransformer(Transformer):
     
     def maxlevel(self, items):
         return MaxLevel(Level(str(items[0])), Level(str(items[1])))
+    
+    def imaxlevel(self, items):
+        return IMaxLevel(Level(str(items[0])), Level(str(items[1])))
 
     def sort(self, items):
         return Sort(items[0])
@@ -166,6 +170,9 @@ class Parser:
         self.parser = Lark(expr_grammar, parser="lalr", transformer=ExprTransformer())
 
     def parse(self, code: str) -> Expr|str:
+        code = code.strip()
+        if len(code) == 0:
+            return ""
         try:
             expr = self.parser.parse(code)
             if isinstance(expr, Expr):
@@ -192,7 +199,6 @@ class Parser:
         message = (
             f"Syntax error at line {e.line}, column {e.column}.\n"
             f"Expected one of: {expected}\n"
-            f"Context:\n{e.get_context(e.text, 40)}\n{' ' * (e.column - 1)}^"
         )
         return message
 
@@ -225,3 +231,9 @@ if __name__ == "__main__":
     assert isinstance(parsed_thm2, EqDef)
     thm2, thm2_type = calc(parsed_thm2.expr, [], {"Prop":Sort(1)}, {"Prop":Sort(0)})
     print(thm2_type)
+
+    thm3 = "def Fun : (a:Sort(u))->Sort(v)"
+    parsed_thm3 = parser.parse(thm3)
+    assert isinstance(parsed_thm3, TypeDef)
+    thm3_type, thm3_type_type = calc(parsed_thm3.type, [], {"Prop":Sort(1)}, {"Prop":Sort(0)})
+    print(thm3_type, ':', thm3_type_type)

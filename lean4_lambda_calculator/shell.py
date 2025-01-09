@@ -1,5 +1,5 @@
 import os
-from lean4_lambda_calculator.expr import print_expr_by_name, Expr, expr_clean_all_names 
+from lean4_lambda_calculator.expr import print_expr_by_name, Expr, expr_clean_all_names
 from lean4_lambda_calculator.calculator import calc, expr_todef, proof_step
 from lean4_lambda_calculator.parser import Parser, EqDef, TypeDef, ThmDef
 from colorama import Fore, Style, init
@@ -122,6 +122,15 @@ class Shell:
             return ""
         return " => ".join(parts[:-1]) + " => "
 
+    def query_const(self, name: str, is_root: True):
+        if is_root and name in self.type_pool:
+            if name in self.def_pool:
+                print(Fore.YELLOW + "[QUERY]" + Style.RESET_ALL, name, ":", print_expr_by_name(self.type_pool[name]), "=", print_expr_by_name(self.def_pool[name]))
+            else:
+                print(Fore.YELLOW + "[QUERY]" + Style.RESET_ALL, name, ":", print_expr_by_name(self.type_pool[name]))
+        else:
+            print(Fore.YELLOW + "[QUERY]" + Style.RESET_ALL, "unknown")
+
     def run(self):
         try:
             while True:
@@ -133,10 +142,15 @@ class Shell:
                     completer=completer,             # 自动补全（可选）
                     complete_style=CompleteStyle.READLINE_LIKE,  # 补全风格
                 )
-                # code = input(">> " if not self.is_in_proof else "[Proof] >> ")
+                code = code.strip()
                 if code == ".exit":
                     print("Exiting...")
                     break
+                if code.startswith(".query "):
+                    for name in code.split(' ')[1:]:
+                        self.query_const(name)
+                if len(code) == 0:
+                    continue
                 prefix = "  " if self.is_in_proof else ""
                 if self.execute(code):
                     self.save_history(prefix + code)

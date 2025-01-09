@@ -16,7 +16,7 @@ class Expr:
         return -1
 
 class Sort(Expr):
-    def __init__(self, level: Level | int | str):
+    def __init__(self, level: str | int | Level):
         if isinstance(level, Level):
             self.level: Level = level
         elif isinstance(level, int):
@@ -251,44 +251,62 @@ def expr_rename_args(expr: Expr):
     # 3. 为没有命名的使用变量赋予新的名字 
     used_vars = _get_used_args(expr, [])
     used_names = set([var.name for var in used_vars if var.name is not None])
-    _arg_set_name(expr, used_vars, 0, used_names)
+    _arg_set_name(expr, used_vars, used_names)
+    return
 
 def _get_used_args(expr: Expr, context: list[Arg]) -> list[Arg]:
-    if isinstance(expr, Sort) or isinstance(expr, Const) or isinstance(expr, Arg):
+    if isinstance(expr, Sort) or isinstance(expr, Const):
         return []
+    elif isinstance(expr, Arg):
+        return _get_used_args(expr.type, context)
     elif isinstance(expr, BoundVar):
         assert expr.index < len(context), "Out of bound"
         return [context[expr.index]]
     elif isinstance(expr, App):
         return _get_used_args(expr.func, context) + _get_used_args(expr.arg, context)
     elif isinstance(expr, Lambda) or isinstance(expr, Forall):
-        return _get_used_args(expr.body, [expr.var_type] + context)
+        return _get_used_args(expr.var_type, context) + _get_used_args(expr.body, [expr.var_type] + context)
     return []
 
-def _arg_set_name(expr: Expr, used_vars: list[Arg], next_index: int, used_names: set[str]) -> int:
+def _arg_set_name(expr: Expr, used_vars: list[Arg], used_names: set[str]):
     if isinstance(expr, Sort) or isinstance(expr, Const):
-        return next_index
+        return
     elif isinstance(expr, Arg):
         if expr in used_vars:
             if expr.name is None:
-                expr.name, next_index = _get_new_name(next_index, used_names)
-            return next_index
+                expr.name = _get_new_name(expr.type, used_names)
         else:
             expr.name = None
-            return next_index
+        _arg_set_name(expr.type, used_vars, used_names)
     elif isinstance(expr, App):
-        index = _arg_set_name(expr.func, used_vars, next_index, used_names)
-        return _arg_set_name(expr.arg, used_vars, index, used_names)
+        _arg_set_name(expr.func, used_vars, used_names)
+        _arg_set_name(expr.arg, used_vars, used_names)
     elif isinstance(expr, Lambda) or isinstance(expr, Forall):
-        index = _arg_set_name(expr.var_type, used_vars, next_index, used_names)
-        return _arg_set_name(expr.body, used_vars, index, used_names)
+        _arg_set_name(expr.var_type, used_vars, used_names)
+        _arg_set_name(expr.body, used_vars, used_names)
 
-def _get_new_name(index: int, used_names: set[str]) -> tuple[str, int]:
+def _get_new_name(expr_type: Expr, used_names: set[str]) -> tuple[str, int]:
+    index = 0
     while True:
-        name = chr(ord('a') + index)
-        if name not in used_names:
-            return name, index + 1 
-        index += 1
+        if isinstance(expr_type, Sort):
+            name = f's{index}'
+            if name not in used_names:
+                used_names.add(name)
+                return name
+            index += 1
+        elif isinstance(expr_type, Forall):
+            name = f"f{index}"
+            if name not in used_names:
+                used_names.add(name)
+                return name
+            index += 1
+        else:
+            name = chr(ord('a') + index)
+            if name not in used_names:
+                used_names.add(name)
+                return name
+            index += 1
+
 
 def expr_clean_unsed_name(expr: Expr):
     used_vars = _get_used_args(expr, [])
@@ -428,5 +446,22 @@ def set_boundvar_name(expr: Expr, context: list[Arg]) -> None:
     elif isinstance(expr, Lambda) or isinstance(expr, Forall):
         set_boundvar_name(expr.var_type, context)
         set_boundvar_name(expr.body, [expr.var_type] + context)
+    else:
+        raise ValueError("Unknown expr", expr)
+
+def get_all_consts(expr: Expr) -> None:
+    # inmemory change expr
+    if isinstance(expr, Sort):
+        return []
+    elif isinstance(expr, Const):
+        return [expr.label]
+    elif isinstance(expr, Arg):
+        return get_all_consts(expr.type)
+    elif isinstance(expr, BoundVar):
+        return []
+    elif isinstance(expr, App):
+        return get_all_consts(expr.func) + get_all_consts(expr.arg)
+    elif isinstance(expr, Lambda) or isinstance(expr, Forall):
+        return get_all_consts(expr.var_type) + get_all_consts(expr.body)
     else:
         raise ValueError("Unknown expr", expr)

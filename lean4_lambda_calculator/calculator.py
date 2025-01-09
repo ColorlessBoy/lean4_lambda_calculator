@@ -5,7 +5,7 @@ Date: 2024-11-27
 License: MIT
 """
 
-from lean4_lambda_calculator.level import Level, SuccLevel, MaxLevel, PreLevel, is_solvable
+from lean4_lambda_calculator.level import Level, SuccLevel, MaxLevel, PreLevel, is_solvable, IMaxLevel
 from lean4_lambda_calculator.expr import Expr, BoundVar, Const, Lambda, Forall, App, Sort, Arg, expr_rename_level, expr_todef, get_sort_eq_conditions, print_expr_by_name
 
 import time
@@ -69,14 +69,16 @@ def calc(expr: Expr, context: list[Arg] = None, type_pool: dict[str, Expr] = Non
         return expr, shift_expr(context[expr.index].type, offset=0, step=expr.index+1)
     elif isinstance(expr, Forall):
         assert isinstance(expr.var_type, Arg), f"Type of variable in Forall should be Arg, but got {expr.var_type}"
-        var_type, _ = calc(expr.var_type, context, type_pool, def_pool, used_free_symbols)
+        var_type, var_type_type = calc(expr.var_type, context, type_pool, def_pool, used_free_symbols)
         assert isinstance(var_type, Arg), f"Type of variable in Forall should be Arg, but got {var_type}"
         new_context = [var_type] + context
         new_body, body_type = calc(
             expr.body, new_context, type_pool, def_pool, used_free_symbols
         )
         return_expr = Forall(var_type, new_body)
-        return_type = Sort(SuccLevel(MaxLevel(get_level(var_type, context, type_pool, def_pool), get_level(new_body, new_context, type_pool, def_pool))))
+        left = get_level(var_type_type, context, type_pool, def_pool)
+        right = get_level(body_type, new_context, type_pool, def_pool)
+        return_type = Sort(IMaxLevel(SuccLevel(left), right))
         return return_expr, return_type
     elif isinstance(expr, Lambda):
         assert isinstance(expr.var_type, Arg), f"Type of variable in Lambda should be Arg, but got {expr.var_type}"
@@ -199,7 +201,7 @@ def get_level(expr: Expr, context: list[Arg], type_pool: dict[str, Expr], def_po
         right = get_level(expr.body, [expr.var_type] + context, type_pool, def_pool)
         result = MaxLevel(left, right)
     elif isinstance(expr, Lambda):
-        left = get_level(expr.var_type, context, type_pool)
+        left = get_level(expr.var_type, context, type_pool, def_pool)
         right = get_level(expr.body, [expr.var_type] + context, type_pool, def_pool)
         result = PreLevel(MaxLevel(left, SuccLevel(right)))
     elif isinstance(expr, App):
