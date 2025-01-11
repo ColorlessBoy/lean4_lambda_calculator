@@ -60,7 +60,7 @@ def calc(expr: Expr, context: list[Arg] = None, type_pool: dict[str, Expr] = Non
         used_free_symbols.update(new_used_free_symbols)
         return expr, expr_type
     elif isinstance(expr, Arg):
-        arg_type, _ = calc(expr.type, context, type_pool, def_pool, used_free_symbols)
+        arg_type, _ = calc(expr.type, context, type_pool, def_pool, used_free_symbols, type_no_check=type_no_check)
         return Arg(arg_type, expr.name), arg_type
     elif isinstance(expr, BoundVar):
         assert expr.index < len(
@@ -69,11 +69,11 @@ def calc(expr: Expr, context: list[Arg] = None, type_pool: dict[str, Expr] = Non
         return expr, shift_expr(context[expr.index].type, offset=0, step=expr.index+1)
     elif isinstance(expr, Forall):
         assert isinstance(expr.var_type, Arg), f"Type of variable in Forall should be Arg, but got {expr.var_type}"
-        var_type, var_type_type = calc(expr.var_type, context, type_pool, def_pool, used_free_symbols)
+        var_type, var_type_type = calc(expr.var_type, context, type_pool, def_pool, used_free_symbols, type_no_check=type_no_check)
         assert isinstance(var_type, Arg), f"Type of variable in Forall should be Arg, but got {var_type}"
         new_context = [var_type] + context
         new_body, body_type = calc(
-            expr.body, new_context, type_pool, def_pool, used_free_symbols
+            expr.body, new_context, type_pool, def_pool, used_free_symbols, type_no_check=type_no_check
         )
         return_expr = Forall(var_type, new_body)
         left = get_level(var_type_type, context, type_pool, def_pool)
@@ -82,31 +82,31 @@ def calc(expr: Expr, context: list[Arg] = None, type_pool: dict[str, Expr] = Non
         return return_expr, return_type
     elif isinstance(expr, Lambda):
         assert isinstance(expr.var_type, Arg), f"Type of variable in Lambda should be Arg, but got {expr.var_type}"
-        var_type, _ = calc(expr.var_type, context, type_pool, def_pool, used_free_symbols)
+        var_type, _ = calc(expr.var_type, context, type_pool, def_pool, used_free_symbols, type_no_check=type_no_check)
         assert isinstance(var_type, Arg), f"Type of variable in Forall should be Arg, but got {var_type}"
         new_context = [var_type] + context
         new_body, body_type = calc(
-            expr.body, new_context, type_pool, def_pool, used_free_symbols
+            expr.body, new_context, type_pool, def_pool, used_free_symbols, type_no_check=type_no_check
         )
         return_expr = Lambda(var_type, new_body)
         return_type = Forall(var_type, body_type)
         return return_expr, return_type
     elif isinstance(expr, App):
-        arg, arg_type = calc(expr.arg, context, type_pool, def_pool, used_free_symbols)
-        func, func_type = calc(expr.func, context, type_pool, def_pool, used_free_symbols)
+        arg, arg_type = calc(expr.arg, context, type_pool, def_pool, used_free_symbols, type_no_check=type_no_check)
+        func, func_type = calc(expr.func, context, type_pool, def_pool, used_free_symbols, type_no_check=type_no_check)
         if not isinstance(func_type, Forall):
-            def_func_type = calc(expr_todef(func_type, def_pool), context, type_pool, def_pool, used_free_symbols)[0]
+            def_func_type = calc(expr_todef(func_type, def_pool), context, type_pool, def_pool, used_free_symbols, type_no_check=True)[0]
             if not isinstance(def_func_type, Forall):
                 raise ValueError(f"Function application to a non-function: {func_type}")
             func_type = def_func_type
         if not type_no_check and not DefEq(func_type.var_type, arg_type, context, type_pool, def_pool, used_free_symbols):
-            context_info = ','.join([f"#{idx}:{print_expr_by_name(expr)}" for idx, expr in enumerate(context)])
+            context_info = ','.join([f"(#{idx}, {print_expr_by_name(expr, context=context)})" for idx, expr in enumerate(context)])
             raise ValueError(f"Type mismatch: want {func_type.var_type}, get {arg_type}. Context=[{context_info}]")
         tmp = unshift_expr(func_type.body, head=arg, offset=0)
-        unshifted_funcbody_type, _ = calc(tmp, context, type_pool, def_pool, used_free_symbols)
+        unshifted_funcbody_type, _ = calc(tmp, context, type_pool, def_pool, used_free_symbols, type_no_check=type_no_check)
         if isinstance(func, Lambda):
             tmp = unshift_expr(func.body, head=arg, offset=0)
-            unshifted_funcbody, _ = calc(tmp, context, type_pool, def_pool, used_free_symbols)
+            unshifted_funcbody, _ = calc(tmp, context, type_pool, def_pool, used_free_symbols, type_no_check=type_no_check)
             return unshifted_funcbody, unshifted_funcbody_type
         return App(func, arg), unshifted_funcbody_type
     else:
@@ -114,12 +114,14 @@ def calc(expr: Expr, context: list[Arg] = None, type_pool: dict[str, Expr] = Non
 
 @log_execution_time
 def DefEq(target: Expr, source: Expr, context: list[Arg], type_pool: dict[str, Expr], def_pool: dict[str, Expr], used_free_symbols: set[str]=None) -> bool:
-    if used_free_symbols is None:
-        used_free_symbols = set()
     if target == source:
         return True
-    subs_target = calc(expr_todef(target, def_pool), context, type_pool, def_pool, used_free_symbols, type_no_check=True)[0]
-    subs_source = calc(expr_todef(source, def_pool), context, type_pool, def_pool, used_free_symbols, type_no_check=True)[0]
+    if used_free_symbols is None:
+        used_free_symbols = set()
+    if str(target) in ("Prop", "Sort(0)") and str(source) in ("Prop", "Sort(0)"):
+        return True
+    subs_target, subs_target_type = calc(expr_todef(target, def_pool), context, type_pool, def_pool, used_free_symbols, type_no_check=True) 
+    subs_source, subs_source_type = calc(expr_todef(source, def_pool), context, type_pool, def_pool, used_free_symbols, type_no_check=True) 
     if subs_target == subs_source:
         conditions = get_sort_eq_conditions(subs_target, subs_source)
         if is_solvable(conditions):

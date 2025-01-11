@@ -112,7 +112,11 @@ partial def toPrefixExpr (e : Expr) (maxExprSize: Nat) : MetaM String := do
       fStr := s!"({fStr})"
     if arg_level <= expr_level then
       argsStr := s!"({argsStr})"
-    pure s!"{fStr} {argsStr}"
+    if fStr == "outParam" then
+      -- 不需要 outParam
+      pure s!"{argsStr}"
+    else
+      pure s!"{fStr} {argsStr}"
   | Expr.lam _ t body _ =>
     let mut bodyStr ← toPrefixExpr body maxExprSize
     let mut t_prefix ← toPrefixExpr t maxExprSize
@@ -144,9 +148,9 @@ partial def toPrefixExpr (e : Expr) (maxExprSize: Nat) : MetaM String := do
     match l with
     | Literal.natVal val => pure s!"(NatLiteral {val})"
     | Literal.strVal val => pure s!"(StrLiteral \"{val}\")"
-  | Expr.mdata data expr =>
+  | Expr.mdata _ expr =>
     let bodyExpr ← toPrefixExpr expr maxExprSize
-    pure s!"(Mdata {data} :: {bodyExpr})"
+    pure s!"{bodyExpr}"
   | Expr.proj typeName idx struct =>
     let prefixStruct ← toPrefixExpr struct maxExprSize
     pure s!"(Proj {typeName} {idx} {prefixStruct})"
@@ -170,8 +174,9 @@ def getConstantDetails (name : Name)  (maxPropSize : Nat) (maxProofSize : Nat): 
   | some (ConstantInfo.defnInfo defn) =>
       -- 定义：有类型和定义体
       let name := s!"{defn.name}"
-      let value ← toPrefixExpr defn.value maxPropSize
-      pure s!"def {name} = {value}"
+      let value ← toPrefixExpr defn.value maxProofSize
+      let type ← toPrefixExpr defn.type maxPropSize
+      pure s!"def {name} : {type} := {value}"
   | some (ConstantInfo.ctorInfo ctor) =>
       -- 构造函数：有类型，但无单独定义值
       let name := s!"{ctor.name}"

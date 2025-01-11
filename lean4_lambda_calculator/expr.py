@@ -185,7 +185,7 @@ def print_expr_by_name(expr: Expr, context: list[Arg] = None) -> str:
             return f"{print_expr_by_name(expr.type, context)}"
         return f"{expr.name} : {print_expr_by_name(expr.type, context)}"
     elif isinstance(expr, BoundVar):
-        assert expr.index < len(context), "Out of bound"
+        assert expr.index < len(context), "Out of bound 3"
         pair = context[expr.index]
         if pair.name is None:
             return str(expr)
@@ -260,7 +260,7 @@ def _get_used_args(expr: Expr, context: list[Arg]) -> list[Arg]:
     elif isinstance(expr, Arg):
         return _get_used_args(expr.type, context)
     elif isinstance(expr, BoundVar):
-        assert expr.index < len(context), "Out of bound"
+        assert expr.index < len(context), "Out of bound 4"
         return [context[expr.index]]
     elif isinstance(expr, App):
         return _get_used_args(expr.func, context) + _get_used_args(expr.arg, context)

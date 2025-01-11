@@ -1,0 +1,251 @@
+def Prop := Sort(0)
+def HEq : (s0 : Sort(u)) -> s0 -> (s1 : Sort(u)) -> s1 -> Prop
+def Eq : (s0 : Sort(u_1)) -> s0 -> s0 -> Prop
+def Eq.refl : (s0 : Sort(u_1)) -> (a : s0) -> Eq s0 a a
+def Eq.rec : (s0 : Sort(u_1)) -> (a : s0) -> (f0 : (b : s0) -> Eq s0 a b -> Sort(u)) -> f0 a (Eq.refl s0 a) -> (c : s0) -> (d : Eq s0 a c) -> f0 c d
+def Eq.casesOn := (s0 : Sort(u_1)) => (a : s0) => (f0 : (b : s0) -> Eq s0 a b -> Sort(u)) => (c : s0) => (d : Eq s0 a c) => (e : f0 a (Eq.refl s0 a)) => Eq.rec s0 a f0 e c d
+def Iff : Prop -> Prop -> Prop
+def propext : (a : Prop) -> (b : Prop) -> Iff a b -> Eq Prop a b
+def Iff.intro : (a : Prop) -> (b : Prop) -> (a -> b) -> (b -> a) -> Iff a b
+thm iff_of_true : (a : Prop) -> (b : Prop) -> a -> b -> Iff a b
+  (a : Prop) => (b : Prop) => (c : a) => (d : b) => Iff.intro a b (a => d) (b => c)
+def rfl := (s0 : Sort(u)) => (a : s0) => Eq.refl s0 a
+thm Eq.symm : (s0 : Sort(u)) -> (a : s0) -> (b : s0) -> Eq s0 a b -> Eq s0 b a
+  (s0 : Sort(u)) => (a : s0) => (b : s0) => (c : Eq s0 a b) => Eq.rec s0 a ((d : s0) => Eq s0 a d => Eq s0 d a) (rfl s0 a) b c
+def HEq.refl : (s0 : Sort(u)) -> (a : s0) -> HEq s0 a s0 a
+thm HEq.of_eq : (a : Sort(u)) -> (x : a) -> (y : a) -> Eq a x y -> HEq a x a y
+  (a : Sort(u)) => (x : a) => Eq.rec a x ((z : a) => Eq a x z => HEq a x a z) (HEq.refl a x)
+def proof_irrel : (a : Prop) -> (x : a) -> (y : a) -> Eq a x y
+thm proof_irrel_heq_1 : (a : Prop) -> (x : a) -> (y : a) -> HEq a x a y
+  (a : Prop) => (x : a) => (y : a) => HEq.of_eq a x y (proof_irrel a x y)
+thm proof_irrel_heq : (a : Prop) -> (b : Prop) -> (c : a) -> (d : b) -> HEq a c b d
+  (a : Prop) => (b : Prop) => (c : a) => (d : b) => Eq.casesOn Prop a ((e : Prop) => (f : Eq Prop a e) => (Eq Prop b e -> HEq (Eq Prop a b) (propext a b (iff_of_true a b c d)) (Eq Prop a e) f -> HEq a c b d)) b (propext a b (iff_of_true a b c d)) ((f : Eq Prop b a) => Eq.casesOn Prop a ((h : Prop) => Eq Prop a h => ((i : h) -> HEq (Eq Prop a h) (propext a h (iff_of_true a h c i)) (Eq Prop a a) (Eq.refl Prop a) -> HEq a c h i)) b (Eq.symm Prop b a f) ((i : a) => HEq (Eq Prop a a) (propext a a (iff_of_true a a c i)) (Eq Prop a a) (Eq.refl Prop a) => proof_irrel_heq_1 a c i) d) (Eq.refl Prop b) (HEq.refl (Eq Prop a b) (propext a b (iff_of_true a b c d)))
+def False : Prop
+def Not := (a : Prop) => (a -> False)
+def Or : Prop -> Prop -> Prop
+def Or.inr : (a : Prop) -> (b : Prop) -> b -> Or a b
+def Function.comp := (s0 : Sort(u)) => (s1 : Sort(v)) => (s2 : Sort(w)) => (f0 : s1 -> s2) => (f1 : s0 -> s1) => (a : s0) => f0 (f1 a)
+def Or.inl : (a : Prop) -> (b : Prop) -> a -> Or a b
+thm not_not_em : (a : Prop) -> Not (Not (Or a (Not a)))
+  (a : Prop) => (b : Not (Or a (Not a))) => b (Or.inr a (Not a) (Function.comp a (Or a (Not a)) False b (Or.inl a (Not a))))
+def And : Prop -> Prop -> Prop
+thm Iff.refl : (a : Prop) -> Iff a a
+  (a : Prop) => Iff.intro a a ((b : a) => b) ((c : a) => c)
+thm Iff.rfl : (a : Prop) -> Iff a a
+  (a : Prop) => Iff.refl a
+thm Iff.of_eq : (a : Prop) -> (b : Prop) -> Eq Prop a b -> Iff a b
+  (a : Prop) => (b : Prop) => (c : Eq Prop a b) => Eq.rec Prop a ((d : Prop) => Eq Prop a d => Iff a d) (Iff.rfl a) b c
+def And.left : (a : Prop) -> (b : Prop) -> And a b -> a
+def And.intro : (a : Prop) -> (b : Prop) -> a -> b -> And a b
+thm and_self : (a : Prop) -> Eq Prop (And a a) a
+  (a : Prop) => propext (And a a) a (Iff.intro (And a a) a ((b : And a a) => And.left a a b) ((c : a) => And.intro a a c c))
+thm and_self_iff : (a : Prop) -> Iff (And a a) a
+  (a : Prop) => Iff.of_eq (And a a) a (and_self a)
+def False.rec : (f0 : (a : False) -> Sort(u)) -> (b : False) -> f0 b
+def absurd := (a : Prop) => (s0 : Sort(v)) => (b : a) => (c : Not a) => False.rec (False => s0) (c b)
+def Not.elim := (a : Prop) => (s0 : Sort(u_1)) => (b : Not a) => (c : a) => absurd a s0 c b
+thm iff_of_false : (a : Prop) -> (b : Prop) -> Not a -> Not b -> Iff a b
+  (a : Prop) => (b : Prop) => (c : Not a) => (d : Not b) => Iff.intro a b (Not.elim a b c) (Not.elim b a d)
+def id := (s0 : Sort(u)) => (a : s0) => a
+thm iff_false_intro : (a : Prop) -> Not a -> Iff a False
+  (a : Prop) => (b : Not a) => iff_of_false a False b (id False)
+def And.rec : (a : Prop) -> (b : Prop) -> (f0 : And a b -> Sort(u)) -> ((c : a) -> (d : b) -> f0 (And.intro a b c d)) -> (e : And a b) -> f0 e
+def And.casesOn := (a : Prop) => (b : Prop) => (f0 : And a b -> Sort(u)) => (c : And a b) => (f1 : (d : a) -> (e : b) -> f0 (And.intro a b d e)) => And.rec a b f0 ((f : a) => (g : b) => f1 f g) c
+def and_not_self.match_1 := (a : Prop) => (f0 : And a (Not a) -> Prop) => (b : And a (Not a)) => (f1 : (c : a) -> (d : Not a) -> f0 (And.intro a (Not a) c d)) => And.casesOn a (Not a) ((e : And a (Not a)) => f0 e) b ((f : a) => (g : Not a) => f1 f g)
+thm and_not_self : (a : Prop) -> Not (And a (Not a))
+  (a : Prop) => (b : And a (Not a)) => and_not_self.match_1 a (And a (Not a) => False) b ((c : a) => (d : Not a) => absurd a False c d)
+thm and_not_self_iff : (a : Prop) -> Iff (And a (Not a)) False
+  (a : Prop) => iff_false_intro (And a (Not a)) (and_not_self a)
+def And.symm.match_1 := (a : Prop) => (b : Prop) => (f0 : And a b -> Prop) => (c : And a b) => (f1 : (d : a) -> (e : b) -> f0 (And.intro a b d e)) => And.casesOn a b ((f : And a b) => f0 f) c ((g : a) => (h : b) => f1 g h)
+thm And.symm : (a : Prop) -> (b : Prop) -> And a b -> And b a
+  (a : Prop) => (b : Prop) => (c : And a b) => And.symm.match_1 a b (And a b => And b a) c ((d : a) => (e : b) => And.intro b a e d)
+thm not_and_self : (a : Prop) -> Not (And (Not a) a)
+  (a : Prop) => Function.comp (And (Not a) a) (And a (Not a)) False (and_not_self a) (And.symm (Not a) a)
+thm not_and_self_iff : (a : Prop) -> Iff (And (Not a) a) False
+  (a : Prop) => iff_false_intro (And (Not a) a) (not_and_self a)
+def And.right : (a : Prop) -> (b : Prop) -> And a b -> b
+thm And.imp : (a : Prop) -> (b : Prop) -> (c : Prop) -> (d : Prop) -> (a -> b) -> (c -> d) -> And a c -> And b d
+  (a : Prop) => (b : Prop) => (c : Prop) => (d : Prop) => (f0 : a -> b) => (f1 : c -> d) => (e : And a c) => And.intro b d (f0 (And.left a c e)) (f1 (And.right a c e))
+thm And.imp_left : (a : Prop) -> (b : Prop) -> (c : Prop) -> (a -> b) -> And a c -> And b c
+  (a : Prop) => (b : Prop) => (c : Prop) => (f0 : a -> b) => And.imp a b c c f0 (id c)
+thm And.imp_right : (a : Prop) -> (b : Prop) -> (c : Prop) -> (a -> b) -> And c a -> And c b
+  (a : Prop) => (b : Prop) => (c : Prop) => (f0 : a -> b) => And.imp c c a b (id c) f0
+def Iff.mp : (a : Prop) -> (b : Prop) -> Iff a b -> a -> b
+def Iff.mpr : (a : Prop) -> (b : Prop) -> Iff a b -> b -> a
+thm and_congr : (a : Prop) -> (b : Prop) -> (c : Prop) -> (d : Prop) -> Iff a b -> Iff c d -> Iff (And a c) (And b d)
+  (a : Prop) => (b : Prop) => (c : Prop) => (d : Prop) => (e : Iff a b) => (f : Iff c d) => Iff.intro (And a c) (And b d) (And.imp a b c d (Iff.mp a b e) (Iff.mp c d f)) (And.imp b a d c (Iff.mpr a b e) (Iff.mpr c d f))
+thm and_congr_left' : (a : Prop) -> (b : Prop) -> (c : Prop) -> Iff a b -> Iff (And a c) (And b c)
+  (a : Prop) => (b : Prop) => (c : Prop) => (d : Iff a b) => and_congr a b c c d (Iff.rfl c)
+thm and_congr_right' : (a : Prop) -> (b : Prop) -> (c : Prop) -> Iff a b -> Iff (And c a) (And c b)
+  (a : Prop) => (b : Prop) => (c : Prop) => (d : Iff a b) => and_congr c c a b (Iff.rfl c) d
+thm mt : (a : Prop) -> (b : Prop) -> (a -> b) -> Not b -> Not a
+  (a : Prop) => (b : Prop) => (f0 : a -> b) => (c : Not b) => (d : a) => c (f0 d)
+thm not_and_of_not_left : (a : Prop) -> (b : Prop) -> Not a -> Not (And a b)
+  (a : Prop) => (b : Prop) => mt (And a b) a (And.left a b)
+thm not_and_of_not_right : (a : Prop) -> (b : Prop) -> Not b -> Not (And a b)
+  (a : Prop) => (b : Prop) => mt (And a b) b (And.right a b)
+def and_imp.match_1 := (a : Prop) => (b : Prop) => (f0 : And a b -> Prop) => (c : And a b) => (f1 : (d : a) -> (e : b) -> f0 (And.intro a b d e)) => And.casesOn a b ((f : And a b) => f0 f) c ((g : a) => (h : b) => f1 g h)
+thm and_congr_right : (a : Prop) -> (b : Prop) -> (c : Prop) -> (a -> Iff b c) -> Iff (And a b) (And a c)
+  (a : Prop) => (b : Prop) => (c : Prop) => (f0 : a -> Iff b c) => Iff.intro (And a b) (And a c) ((d : And a b) => and_imp.match_1 a b (And a b => And a c) d ((e : a) => (f : b) => And.intro a c e (Iff.mp b c (f0 e) f))) ((g : And a c) => and_imp.match_1 a c (And a c => And a b) g ((h : a) => (i : c) => And.intro a b h (Iff.mpr b c (f0 h) i)))
+thm and_congr_right_eq : (a : Prop) -> (b : Prop) -> (c : Prop) -> (a -> Eq Prop b c) -> Eq Prop (And a b) (And a c)
+  (a : Prop) => (b : Prop) => (c : Prop) => (f0 : a -> Eq Prop b c) => propext (And a b) (And a c) (and_congr_right a b c (Function.comp a (Eq Prop b c) (Iff b c) (Iff.of_eq b c) f0))
+thm Iff.trans : (a : Prop) -> (b : Prop) -> (c : Prop) -> Iff a b -> Iff b c -> Iff a c
+  (a : Prop) => (b : Prop) => (c : Prop) => (d : Iff a b) => (e : Iff b c) => Iff.intro a c (Function.comp a b c (Iff.mp b c e) (Iff.mp a b d)) (Function.comp c b a (Iff.mpr a b d) (Iff.mpr b c e))
+thm And.comm : (a : Prop) -> (b : Prop) -> Iff (And a b) (And b a)
+  (a : Prop) => (b : Prop) => Iff.intro (And a b) (And b a) (And.symm a b) (And.symm b a)
+thm and_comm : (a : Prop) -> (b : Prop) -> Iff (And a b) (And b a)
+  (a : Prop) => (b : Prop) => And.comm a b
+thm and_congr_left : (a : Prop) -> (b : Prop) -> (c : Prop) -> (a -> Iff b c) -> Iff (And b a) (And c a)
+  (a : Prop) => (b : Prop) => (c : Prop) => (f0 : a -> Iff b c) => Iff.trans (And b a) (And a b) (And c a) (and_comm b a) (Iff.trans (And a b) (And a c) (And c a) (and_congr_right a b c f0) (and_comm a c))
+thm and_congr_left_eq : (a : Prop) -> (b : Prop) -> (c : Prop) -> (a -> Eq Prop b c) -> Eq Prop (And b a) (And c a)
+  (a : Prop) => (b : Prop) => (c : Prop) => (f0 : a -> Eq Prop b c) => propext (And b a) (And c a) (and_congr_left a b c (Function.comp a (Eq Prop b c) (Iff b c) (Iff.of_eq b c) f0))
+def and_left_comm.match_1 := (a : Prop) => (b : Prop) => (c : Prop) => (f0 : And a (And b c) -> Prop) => (d : And a (And b c)) => (f1 : (e : a) -> (f : b) -> (g : c) -> f0 (And.intro a (And b c) e (And.intro b c f g))) => And.casesOn a (And b c) ((h : And a (And b c)) => f0 h) d ((i : a) => (j : And b c) => And.casesOn b c ((k : And b c) => f0 (And.intro a (And b c) i k)) j ((l : b) => (m : c) => f1 i l m))
+def and_left_comm.match_2 := (a : Prop) => (b : Prop) => (c : Prop) => (f0 : And b (And a c) -> Prop) => (d : And b (And a c)) => (f1 : (e : b) -> (f : a) -> (g : c) -> f0 (And.intro b (And a c) e (And.intro a c f g))) => And.casesOn b (And a c) ((h : And b (And a c)) => f0 h) d ((i : b) => (j : And a c) => And.casesOn a c ((k : And a c) => f0 (And.intro b (And a c) i k)) j ((l : a) => (m : c) => f1 i l m))
+thm and_left_comm : (a : Prop) -> (b : Prop) -> (c : Prop) -> Iff (And a (And b c)) (And b (And a c))
+  (a : Prop) => (b : Prop) => (c : Prop) => Iff.intro (And a (And b c)) (And b (And a c)) ((d : And a (And b c)) => and_left_comm.match_1 a b c (And a (And b c) => And b (And a c)) d ((e : a) => (f : b) => (g : c) => And.intro b (And a c) f (And.intro a c e g))) ((h : And b (And a c)) => and_left_comm.match_2 a b c (And b (And a c) => And a (And b c)) h ((i : b) => (j : a) => (k : c) => And.intro a (And b c) j (And.intro b c i k)))
+def and_right_comm.match_1 := (a : Prop) => (b : Prop) => (c : Prop) => (f0 : And (And a b) c -> Prop) => (d : And (And a b) c) => (f1 : (e : a) -> (f : b) -> (g : c) -> f0 (And.intro (And a b) c (And.intro a b e f) g)) => And.casesOn (And a b) c ((h : And (And a b) c) => f0 h) d ((i : And a b) => (j : c) => And.casesOn a b ((k : And a b) => f0 (And.intro (And a b) c k j)) i ((l : a) => (m : b) => f1 l m j))
+def and_right_comm.match_2 := (a : Prop) => (b : Prop) => (c : Prop) => (f0 : And (And a c) b -> Prop) => (d : And (And a c) b) => (f1 : (e : a) -> (f : c) -> (g : b) -> f0 (And.intro (And a c) b (And.intro a c e f) g)) => And.casesOn (And a c) b ((h : And (And a c) b) => f0 h) d ((i : And a c) => (j : b) => And.casesOn a c ((k : And a c) => f0 (And.intro (And a c) b k j)) i ((l : a) => (m : c) => f1 l m j))
+thm and_right_comm : (a : Prop) -> (b : Prop) -> (c : Prop) -> Iff (And (And a b) c) (And (And a c) b)
+  (a : Prop) => (b : Prop) => (c : Prop) => Iff.intro (And (And a b) c) (And (And a c) b) ((d : And (And a b) c) => and_right_comm.match_1 a b c (And (And a b) c => And (And a c) b) d ((e : a) => (f : b) => (g : c) => And.intro (And a c) b (And.intro a c e g) f)) ((h : And (And a c) b) => and_right_comm.match_2 a b c (And (And a c) b => And (And a b) c) h ((i : a) => (j : c) => (k : b) => And.intro (And a b) c (And.intro a b i k) j))
+def Eq.mpr := (s0 : Sort(u)) => (s1 : Sort(u)) => (a : Eq Sort(u) s0 s1) => (b : s1) => Eq.rec Sort(u) s1 ((s2 : Sort(u)) => Eq Sort(u) s1 s2 => s2) b s0 (Eq.symm Sort(u) s0 s1 a)
+thm congrArg : (s0 : Sort(u)) -> (s1 : Sort(v)) -> (a : s0) -> (b : s0) -> (f0 : s0 -> s1) -> Eq s0 a b -> Eq s1 (f0 a) (f0 b)
+  (s0 : Sort(u)) => (s1 : Sort(v)) => (a : s0) => (b : s0) => (f0 : s0 -> s1) => (c : Eq s0 a b) => Eq.rec s0 a ((d : s0) => Eq s0 a d => Eq s1 (f0 a) (f0 d)) (rfl s1 (f0 a)) b c
+thm and_rotate : (a : Prop) -> (b : Prop) -> (c : Prop) -> Iff (And a (And b c)) (And b (And c a))
+  (a : Prop) => (b : Prop) => (c : Prop) => Eq.mpr (Iff (And a (And b c)) (And b (And c a))) (Iff (And b (And a c)) (And b (And c a))) (id (Eq Prop (Iff (And a (And b c)) (And b (And c a))) (Iff (And b (And a c)) (And b (And c a)))) (congrArg Prop Prop (And a (And b c)) (And b (And a c)) ((d : Prop) => Iff d (And b (And c a))) (propext (And a (And b c)) (And b (And a c)) (and_left_comm a b c)))) (Eq.mpr (Iff (And b (And a c)) (And b (And c a))) (Iff (And b (And c a)) (And b (And c a))) (id (Eq Prop (Iff (And b (And a c)) (And b (And c a))) (Iff (And b (And c a)) (And b (And c a)))) (congrArg Prop Prop (And a c) (And c a) ((e : Prop) => Iff (And b e) (And b (And c a))) (propext (And a c) (And c a) (and_comm a c)))) (Iff.rfl (And b (And c a))))
+def and_assoc.match_1 := (a : Prop) => (b : Prop) => (c : Prop) => (f0 : And (And a b) c -> Prop) => (d : And (And a b) c) => (f1 : (e : a) -> (f : b) -> (g : c) -> f0 (And.intro (And a b) c (And.intro a b e f) g)) => And.casesOn (And a b) c ((h : And (And a b) c) => f0 h) d ((i : And a b) => (j : c) => And.casesOn a b ((k : And a b) => f0 (And.intro (And a b) c k j)) i ((l : a) => (m : b) => f1 l m j))
+def and_assoc.match_2 := (a : Prop) => (b : Prop) => (c : Prop) => (f0 : And a (And b c) -> Prop) => (d : And a (And b c)) => (f1 : (e : a) -> (f : b) -> (g : c) -> f0 (And.intro a (And b c) e (And.intro b c f g))) => And.casesOn a (And b c) ((h : And a (And b c)) => f0 h) d ((i : a) => (j : And b c) => And.casesOn b c ((k : And b c) => f0 (And.intro a (And b c) i k)) j ((l : b) => (m : c) => f1 i l m))
+thm and_assoc : (a : Prop) -> (b : Prop) -> (c : Prop) -> Iff (And (And a b) c) (And a (And b c))
+  (a : Prop) => (b : Prop) => (c : Prop) => Iff.intro (And (And a b) c) (And a (And b c)) ((d : And (And a b) c) => and_assoc.match_1 a b c (And (And a b) c => And a (And b c)) d ((e : a) => (f : b) => (g : c) => And.intro a (And b c) e (And.intro b c f g))) ((h : And a (And b c)) => and_assoc.match_2 a b c (And a (And b c) => And (And a b) c) h ((i : a) => (j : b) => (k : c) => And.intro (And a b) c (And.intro a b i j) k))
+thm and_and_and_comm : (a : Prop) -> (b : Prop) -> (c : Prop) -> (d : Prop) -> Iff (And (And a b) (And c d)) (And (And a c) (And b d))
+  (a : Prop) => (b : Prop) => (c : Prop) => (d : Prop) => Eq.mpr (Iff (And (And a b) (And c d)) (And (And a c) (And b d))) (Iff (And (And (And a b) c) d) (And (And a c) (And b d))) (id (Eq Prop (Iff (And (And a b) (And c d)) (And (And a c) (And b d))) (Iff (And (And (And a b) c) d) (And (And a c) (And b d)))) (congrArg Prop Prop (And (And a b) (And c d)) (And (And (And a b) c) d) ((e : Prop) => Iff e (And (And a c) (And b d))) (Eq.symm Prop (And (And (And a b) c) d) (And (And a b) (And c d)) (propext (And (And (And a b) c) d) (And (And a b) (And c d)) (and_assoc (And a b) c d))))) (Eq.mpr (Iff (And (And (And a b) c) d) (And (And a c) (And b d))) (Iff (And (And (And a c) b) d) (And (And a c) (And b d))) (id (Eq Prop (Iff (And (And (And a b) c) d) (And (And a c) (And b d))) (Iff (And (And (And a c) b) d) (And (And a c) (And b d)))) (congrArg Prop Prop (And (And a b) c) (And (And a c) b) ((f : Prop) => Iff (And f d) (And (And a c) (And b d))) (propext (And (And a b) c) (And (And a c) b) (and_right_comm a b c)))) (Eq.mpr (Iff (And (And (And a c) b) d) (And (And a c) (And b d))) (Iff (And (And a c) (And b d)) (And (And a c) (And b d))) (id (Eq Prop (Iff (And (And (And a c) b) d) (And (And a c) (And b d))) (Iff (And (And a c) (And b d)) (And (And a c) (And b d)))) (congrArg Prop Prop (And (And (And a c) b) d) (And (And a c) (And b d)) ((g : Prop) => Iff g (And (And a c) (And b d))) (propext (And (And (And a c) b) d) (And (And a c) (And b d)) (and_assoc (And a c) b d)))) (Iff.rfl (And (And a c) (And b d)))))
+thm and_and_left : (a : Prop) -> (b : Prop) -> (c : Prop) -> Iff (And a (And b c)) (And (And a b) (And a c))
+  (a : Prop) => (b : Prop) => (c : Prop) => Eq.mpr (Iff (And a (And b c)) (And (And a b) (And a c))) (Iff (And a (And b c)) (And (And a a) (And b c))) (id (Eq Prop (Iff (And a (And b c)) (And (And a b) (And a c))) (Iff (And a (And b c)) (And (And a a) (And b c)))) (congrArg Prop Prop (And (And a b) (And a c)) (And (And a a) (And b c)) ((d : Prop) => Iff (And a (And b c)) d) (propext (And (And a b) (And a c)) (And (And a a) (And b c)) (and_and_and_comm a b a c)))) (Eq.mpr (Iff (And a (And b c)) (And (And a a) (And b c))) (Iff (And a (And b c)) (And a (And b c))) (id (Eq Prop (Iff (And a (And b c)) (And (And a a) (And b c))) (Iff (And a (And b c)) (And a (And b c)))) (congrArg Prop Prop (And a a) a ((e : Prop) => Iff (And a (And b c)) (And e (And b c))) (and_self a))) (Iff.rfl (And a (And b c))))
+thm and_and_right : (a : Prop) -> (b : Prop) -> (c : Prop) -> Iff (And (And a b) c) (And (And a c) (And b c))
+  (a : Prop) => (b : Prop) => (c : Prop) => Eq.mpr (Iff (And (And a b) c) (And (And a c) (And b c))) (Iff (And (And a b) c) (And (And a b) (And c c))) (id (Eq Prop (Iff (And (And a b) c) (And (And a c) (And b c))) (Iff (And (And a b) c) (And (And a b) (And c c)))) (congrArg Prop Prop (And (And a c) (And b c)) (And (And a b) (And c c)) ((d : Prop) => Iff (And (And a b) c) d) (propext (And (And a c) (And b c)) (And (And a b) (And c c)) (and_and_and_comm a c b c)))) (Eq.mpr (Iff (And (And a b) c) (And (And a b) (And c c))) (Iff (And (And a b) c) (And (And a b) c)) (id (Eq Prop (Iff (And (And a b) c) (And (And a b) (And c c))) (Iff (And (And a b) c) (And (And a b) c))) (congrArg Prop Prop (And c c) c ((e : Prop) => Iff (And (And a b) c) (And (And a b) e)) (and_self c))) (Iff.rfl (And (And a b) c)))
+thm and_iff_left : (a : Prop) -> (b : Prop) -> a -> Iff (And b a) b
+  (a : Prop) => (b : Prop) => (c : a) => Iff.intro (And b a) b (And.left b a) ((d : b) => And.intro b a d c)
+thm and_iff_right : (a : Prop) -> (b : Prop) -> a -> Iff (And a b) b
+  (a : Prop) => (b : Prop) => (c : a) => Iff.intro (And a b) b (And.right a b) ((d : b) => And.intro a b c d)
+def Or.rec : (a : Prop) -> (b : Prop) -> (f0 : Or a b -> Prop) -> ((c : a) -> f0 (Or.inl a b c)) -> ((d : b) -> f0 (Or.inr a b d)) -> (e : Or a b) -> f0 e
+def Or.casesOn := (a : Prop) => (b : Prop) => (f0 : Or a b -> Prop) => (c : Or a b) => (f1 : (d : a) -> f0 (Or.inl a b d)) => (f2 : (e : b) -> f0 (Or.inr a b e)) => Or.rec a b f0 ((f : a) => f1 f) ((g : b) => f2 g) c
+def or_self.match_1 := (a : Prop) => (f0 : Or a a -> Prop) => (b : Or a a) => (f1 : (c : a) -> f0 (Or.inl a a c)) => (f2 : (d : a) -> f0 (Or.inr a a d)) => Or.casesOn a a ((e : Or a a) => f0 e) b ((f : a) => f1 f) ((g : a) => f2 g)
+thm or_self : (a : Prop) -> Eq Prop (Or a a) a
+  (a : Prop) => propext (Or a a) a (Iff.intro (Or a a) a ((b : Or a a) => or_self.match_1 a (Or a a => a) b ((c : a) => c) ((d : a) => d)) (Or.inl a a))
+thm or_self_iff : (a : Prop) -> Iff (Or a a) a
+  (a : Prop) => Eq.rec Prop a ((b : Prop) => Eq Prop a b => Iff b a) (Iff.rfl a) (Or a a) (Eq.symm Prop (Or a a) a (or_self a))
+def Or.elim.match_1 := (a : Prop) => (b : Prop) => (f0 : Or a b -> Prop) => (c : Or a b) => (f1 : (d : a) -> f0 (Or.inl a b d)) => (f2 : (e : b) -> f0 (Or.inr a b e)) => Or.casesOn a b ((f : Or a b) => f0 f) c ((g : a) => f1 g) ((h : b) => f2 h)
+thm Or.elim : (a : Prop) -> (b : Prop) -> (c : Prop) -> Or a b -> (a -> c) -> (b -> c) -> c
+  (a : Prop) => (b : Prop) => (c : Prop) => (d : Or a b) => (f0 : a -> c) => (f1 : b -> c) => Or.elim.match_1 a b (Or a b => c) d ((e : a) => f0 e) ((f : b) => f1 f)
+thm not_or_intro : (a : Prop) -> (b : Prop) -> Not a -> Not b -> Not (Or a b)
+  (a : Prop) => (b : Prop) => (c : Not a) => (d : Not b) => (e : Or a b) => Or.elim a b False e c d
+thm Or.imp : (a : Prop) -> (b : Prop) -> (c : Prop) -> (d : Prop) -> (a -> b) -> (c -> d) -> Or a c -> Or b d
+  (a : Prop) => (b : Prop) => (c : Prop) => (d : Prop) => (f0 : a -> b) => (f1 : c -> d) => (e : Or a c) => Or.elim a c (Or b d) e (Function.comp a b (Or b d) (Or.inl b d) f0) (Function.comp c d (Or b d) (Or.inr b d) f1)
+thm or_congr : (a : Prop) -> (b : Prop) -> (c : Prop) -> (d : Prop) -> Iff a b -> Iff c d -> Iff (Or a c) (Or b d)
+  (a : Prop) => (b : Prop) => (c : Prop) => (d : Prop) => (e : Iff a b) => (f : Iff c d) => Iff.intro (Or a c) (Or b d) (Or.imp a b c d (Iff.mp a b e) (Iff.mp c d f)) (Or.imp b a d c (Iff.mpr a b e) (Iff.mpr c d f))
+thm or_congr_left : (a : Prop) -> (b : Prop) -> (c : Prop) -> Iff a b -> Iff (Or a c) (Or b c)
+  (a : Prop) => (b : Prop) => (c : Prop) => (d : Iff a b) => or_congr a b c c d (Iff.rfl c)
+thm or_congr_right : (a : Prop) -> (b : Prop) -> (c : Prop) -> Iff a b -> Iff (Or c a) (Or c b)
+  (a : Prop) => (b : Prop) => (c : Prop) => (d : Iff a b) => or_congr c c a b (Iff.rfl c) d
+thm Or.imp_right : (a : Prop) -> (b : Prop) -> (c : Prop) -> (a -> b) -> Or c a -> Or c b
+  (a : Prop) => (b : Prop) => (c : Prop) => (f0 : a -> b) => Or.imp c c a b (id c) f0
+thm Or.imp_left : (a : Prop) -> (b : Prop) -> (c : Prop) -> (a -> b) -> Or a c -> Or b c
+  (a : Prop) => (b : Prop) => (c : Prop) => (f0 : a -> b) => Or.imp a b c c f0 (id c)
+thm or_assoc : (a : Prop) -> (b : Prop) -> (c : Prop) -> Iff (Or (Or a b) c) (Or a (Or b c))
+  (a : Prop) => (b : Prop) => (c : Prop) => Iff.intro (Or (Or a b) c) (Or a (Or b c)) ((d : Or (Or a b) c) => Or.rec (Or a b) c (Or (Or a b) c => Or a (Or b c)) (Or.imp_right b (Or b c) a (Or.inl b c)) (Function.comp c (Or b c) (Or a (Or b c)) (Or.inr a (Or b c)) (Or.inr b c)) d) ((e : Or a (Or b c)) => Or.rec a (Or b c) (Or a (Or b c) => Or (Or a b) c) (Function.comp a (Or a b) (Or (Or a b) c) (Or.inl (Or a b) c) (Or.inl a b)) (Or.imp_left b (Or a b) c (Or.inr a b)) e)
+thm Or.symm : (a : Prop) -> (b : Prop) -> Or a b -> Or b a
+  (a : Prop) => (b : Prop) => (c : Or a b) => Or.rec a b (Or a b => Or b a) (Or.inr b a) (Or.inl b a) c
+thm Or.comm : (a : Prop) -> (b : Prop) -> Iff (Or a b) (Or b a)
+  (a : Prop) => (b : Prop) => Iff.intro (Or a b) (Or b a) (Or.symm a b) (Or.symm b a)
+thm or_comm : (a : Prop) -> (b : Prop) -> Iff (Or a b) (Or b a)
+  (a : Prop) => (b : Prop) => Or.comm a b
+thm or_left_comm : (a : Prop) -> (b : Prop) -> (c : Prop) -> Iff (Or a (Or b c)) (Or b (Or a c))
+  (a : Prop) => (b : Prop) => (c : Prop) => Eq.mpr (Iff (Or a (Or b c)) (Or b (Or a c))) (Iff (Or (Or a b) c) (Or b (Or a c))) (id (Eq Prop (Iff (Or a (Or b c)) (Or b (Or a c))) (Iff (Or (Or a b) c) (Or b (Or a c)))) (congrArg Prop Prop (Or a (Or b c)) (Or (Or a b) c) ((d : Prop) => Iff d (Or b (Or a c))) (Eq.symm Prop (Or (Or a b) c) (Or a (Or b c)) (propext (Or (Or a b) c) (Or a (Or b c)) (or_assoc a b c))))) (Eq.mpr (Iff (Or (Or a b) c) (Or b (Or a c))) (Iff (Or (Or a b) c) (Or (Or b a) c)) (id (Eq Prop (Iff (Or (Or a b) c) (Or b (Or a c))) (Iff (Or (Or a b) c) (Or (Or b a) c))) (congrArg Prop Prop (Or b (Or a c)) (Or (Or b a) c) ((e : Prop) => Iff (Or (Or a b) c) e) (Eq.symm Prop (Or (Or b a) c) (Or b (Or a c)) (propext (Or (Or b a) c) (Or b (Or a c)) (or_assoc b a c))))) (Eq.mpr (Iff (Or (Or a b) c) (Or (Or b a) c)) (Iff (Or (Or b a) c) (Or (Or b a) c)) (id (Eq Prop (Iff (Or (Or a b) c) (Or (Or b a) c)) (Iff (Or (Or b a) c) (Or (Or b a) c))) (congrArg Prop Prop (Or a b) (Or b a) ((f : Prop) => Iff (Or f c) (Or (Or b a) c)) (propext (Or a b) (Or b a) (or_comm a b)))) (Iff.rfl (Or (Or b a) c))))
+thm or_right_comm : (a : Prop) -> (b : Prop) -> (c : Prop) -> Iff (Or (Or a b) c) (Or (Or a c) b)
+  (a : Prop) => (b : Prop) => (c : Prop) => Eq.mpr (Iff (Or (Or a b) c) (Or (Or a c) b)) (Iff (Or a (Or b c)) (Or (Or a c) b)) (id (Eq Prop (Iff (Or (Or a b) c) (Or (Or a c) b)) (Iff (Or a (Or b c)) (Or (Or a c) b))) (congrArg Prop Prop (Or (Or a b) c) (Or a (Or b c)) ((d : Prop) => Iff d (Or (Or a c) b)) (propext (Or (Or a b) c) (Or a (Or b c)) (or_assoc a b c)))) (Eq.mpr (Iff (Or a (Or b c)) (Or (Or a c) b)) (Iff (Or a (Or b c)) (Or a (Or c b))) (id (Eq Prop (Iff (Or a (Or b c)) (Or (Or a c) b)) (Iff (Or a (Or b c)) (Or a (Or c b)))) (congrArg Prop Prop (Or (Or a c) b) (Or a (Or c b)) ((e : Prop) => Iff (Or a (Or b c)) e) (propext (Or (Or a c) b) (Or a (Or c b)) (or_assoc a c b)))) (Eq.mpr (Iff (Or a (Or b c)) (Or a (Or c b))) (Iff (Or a (Or c b)) (Or a (Or c b))) (id (Eq Prop (Iff (Or a (Or b c)) (Or a (Or c b))) (Iff (Or a (Or c b)) (Or a (Or c b)))) (congrArg Prop Prop (Or b c) (Or c b) ((f : Prop) => Iff (Or a f) (Or a (Or c b))) (propext (Or b c) (Or c b) (or_comm b c)))) (Iff.rfl (Or a (Or c b)))))
+thm or_or_or_comm : (a : Prop) -> (b : Prop) -> (c : Prop) -> (d : Prop) -> Iff (Or (Or a b) (Or c d)) (Or (Or a c) (Or b d))
+  (a : Prop) => (b : Prop) => (c : Prop) => (d : Prop) => Eq.mpr (Iff (Or (Or a b) (Or c d)) (Or (Or a c) (Or b d))) (Iff (Or (Or (Or a b) c) d) (Or (Or a c) (Or b d))) (id (Eq Prop (Iff (Or (Or a b) (Or c d)) (Or (Or a c) (Or b d))) (Iff (Or (Or (Or a b) c) d) (Or (Or a c) (Or b d)))) (congrArg Prop Prop (Or (Or a b) (Or c d)) (Or (Or (Or a b) c) d) ((e : Prop) => Iff e (Or (Or a c) (Or b d))) (Eq.symm Prop (Or (Or (Or a b) c) d) (Or (Or a b) (Or c d)) (propext (Or (Or (Or a b) c) d) (Or (Or a b) (Or c d)) (or_assoc (Or a b) c d))))) (Eq.mpr (Iff (Or (Or (Or a b) c) d) (Or (Or a c) (Or b d))) (Iff (Or (Or (Or a c) b) d) (Or (Or a c) (Or b d))) (id (Eq Prop (Iff (Or (Or (Or a b) c) d) (Or (Or a c) (Or b d))) (Iff (Or (Or (Or a c) b) d) (Or (Or a c) (Or b d)))) (congrArg Prop Prop (Or (Or a b) c) (Or (Or a c) b) ((f : Prop) => Iff (Or f d) (Or (Or a c) (Or b d))) (propext (Or (Or a b) c) (Or (Or a c) b) (or_right_comm a b c)))) (Eq.mpr (Iff (Or (Or (Or a c) b) d) (Or (Or a c) (Or b d))) (Iff (Or (Or a c) (Or b d)) (Or (Or a c) (Or b d))) (id (Eq Prop (Iff (Or (Or (Or a c) b) d) (Or (Or a c) (Or b d))) (Iff (Or (Or a c) (Or b d)) (Or (Or a c) (Or b d)))) (congrArg Prop Prop (Or (Or (Or a c) b) d) (Or (Or a c) (Or b d)) ((g : Prop) => Iff g (Or (Or a c) (Or b d))) (propext (Or (Or (Or a c) b) d) (Or (Or a c) (Or b d)) (or_assoc (Or a c) b d)))) (Iff.rfl (Or (Or a c) (Or b d)))))
+thm or_or_distrib_left : (a : Prop) -> (b : Prop) -> (c : Prop) -> Iff (Or a (Or b c)) (Or (Or a b) (Or a c))
+  (a : Prop) => (b : Prop) => (c : Prop) => Eq.mpr (Iff (Or a (Or b c)) (Or (Or a b) (Or a c))) (Iff (Or a (Or b c)) (Or (Or a a) (Or b c))) (id (Eq Prop (Iff (Or a (Or b c)) (Or (Or a b) (Or a c))) (Iff (Or a (Or b c)) (Or (Or a a) (Or b c)))) (congrArg Prop Prop (Or (Or a b) (Or a c)) (Or (Or a a) (Or b c)) ((d : Prop) => Iff (Or a (Or b c)) d) (propext (Or (Or a b) (Or a c)) (Or (Or a a) (Or b c)) (or_or_or_comm a b a c)))) (Eq.mpr (Iff (Or a (Or b c)) (Or (Or a a) (Or b c))) (Iff (Or a (Or b c)) (Or a (Or b c))) (id (Eq Prop (Iff (Or a (Or b c)) (Or (Or a a) (Or b c))) (Iff (Or a (Or b c)) (Or a (Or b c)))) (congrArg Prop Prop (Or a a) a ((e : Prop) => Iff (Or a (Or b c)) (Or e (Or b c))) (or_self a))) (Iff.rfl (Or a (Or b c))))
+thm or_or_distrib_right : (a : Prop) -> (b : Prop) -> (c : Prop) -> Iff (Or (Or a b) c) (Or (Or a c) (Or b c))
+  (a : Prop) => (b : Prop) => (c : Prop) => Eq.mpr (Iff (Or (Or a b) c) (Or (Or a c) (Or b c))) (Iff (Or (Or a b) c) (Or (Or a b) (Or c c))) (id (Eq Prop (Iff (Or (Or a b) c) (Or (Or a c) (Or b c))) (Iff (Or (Or a b) c) (Or (Or a b) (Or c c)))) (congrArg Prop Prop (Or (Or a c) (Or b c)) (Or (Or a b) (Or c c)) ((d : Prop) => Iff (Or (Or a b) c) d) (propext (Or (Or a c) (Or b c)) (Or (Or a b) (Or c c)) (or_or_or_comm a c b c)))) (Eq.mpr (Iff (Or (Or a b) c) (Or (Or a b) (Or c c))) (Iff (Or (Or a b) c) (Or (Or a b) c)) (id (Eq Prop (Iff (Or (Or a b) c) (Or (Or a b) (Or c c))) (Iff (Or (Or a b) c) (Or (Or a b) c))) (congrArg Prop Prop (Or c c) c ((e : Prop) => Iff (Or (Or a b) c) (Or (Or a b) e)) (or_self c))) (Iff.rfl (Or (Or a b) c)))
+def True : Prop
+def True.intro : True
+thm trivial : True
+  True.intro
+thm of_eq_true : (a : Prop) -> Eq Prop a True -> a
+  (a : Prop) => (b : Eq Prop a True) => Eq.rec Prop True ((c : Prop) => Eq Prop True c => c) trivial a (Eq.symm Prop a True b)
+thm Eq.trans : (s0 : Sort(u)) -> (a : s0) -> (b : s0) -> (c : s0) -> Eq s0 a b -> Eq s0 b c -> Eq s0 a c
+  (s0 : Sort(u)) => (a : s0) => (b : s0) => (c : s0) => (d : Eq s0 a b) => (e : Eq s0 b c) => Eq.rec s0 b ((f : s0) => Eq s0 b f => Eq s0 a f) d c e
+thm Init.PropLemmas._auxLemma.3 : (a : Prop) -> (b : Prop) -> Eq Prop (Or a b) (Or b a)
+  (a : Prop) => (b : Prop) => propext (Or a b) (Or b a) (Or.comm a b)
+thm Init.PropLemmas._auxLemma.2 : (a : Prop) -> (b : Prop) -> (c : Prop) -> Eq Prop (Or a (Or b c)) (Or b (Or a c))
+  (a : Prop) => (b : Prop) => (c : Prop) => propext (Or a (Or b c)) (Or b (Or a c)) (or_left_comm a b c)
+thm eq_true : (a : Prop) -> a -> Eq Prop a True
+  (a : Prop) => (b : a) => propext a True (Iff.intro a True (a => trivial) (True => b))
+thm iff_self : (a : Prop) -> Eq Prop (Iff a a) True
+  (a : Prop) => eq_true (Iff a a) (Iff.rfl a)
+thm or_rotate : (a : Prop) -> (b : Prop) -> (c : Prop) -> Iff (Or a (Or b c)) (Or b (Or c a))
+  (a : Prop) => (b : Prop) => (c : Prop) => of_eq_true (Iff (Or a (Or b c)) (Or b (Or c a))) (Eq.trans Prop (Iff (Or a (Or b c)) (Or b (Or c a))) (Iff (Or a (Or b c)) (Or a (Or b c))) True (congrArg Prop Prop (Or b (Or c a)) (Or a (Or b c)) (Iff (Or a (Or b c))) (Eq.trans Prop (Or b (Or c a)) (Or b (Or a c)) (Or a (Or b c)) (congrArg Prop Prop (Or c a) (Or a c) (Or b) (Init.PropLemmas._auxLemma.3 c a)) (Init.PropLemmas._auxLemma.2 b a c))) (iff_self (Or a (Or b c))))
+thm or_iff_left_of_imp : (a : Prop) -> (b : Prop) -> (a -> b) -> Iff (Or b a) b
+  (a : Prop) => (b : Prop) => (f0 : a -> b) => Iff.intro (Or b a) b ((c : Or b a) => Or.rec b a (Or b a => b) (id b) f0 c) (Or.inl b a)
+thm or_iff_left_iff_imp : (a : Prop) -> (b : Prop) -> Iff (Iff (Or a b) a) (b -> a)
+  (a : Prop) => (b : Prop) => Iff.intro (Iff (Or a b) a) (b -> a) ((c : Iff (Or a b) a) => Function.comp b (Or a b) a (Iff.mp (Or a b) a c) (Or.inr a b)) (or_iff_left_of_imp b a)
+thm or_iff_left : (a : Prop) -> (b : Prop) -> Not a -> Iff (Or b a) b
+  (a : Prop) => (b : Prop) => (c : Not a) => Iff.mpr (Iff (Or b a) b) (a -> b) (or_iff_left_iff_imp b a) (Not.elim a b c)
+thm or_iff_right_iff_imp : (a : Prop) -> (b : Prop) -> Iff (Iff (Or a b) b) (a -> b)
+  (a : Prop) => (b : Prop) => Eq.mpr (Iff (Iff (Or a b) b) (a -> b)) (Iff (Iff (Or b a) b) (a -> b)) (id (Eq Prop (Iff (Iff (Or a b) b) (a -> b)) (Iff (Iff (Or b a) b) (a -> b))) (congrArg Prop Prop (Or a b) (Or b a) ((c : Prop) => Iff (Iff c b) (a -> b)) (propext (Or a b) (Or b a) (or_comm a b)))) (Eq.mpr (Iff (Iff (Or b a) b) (a -> b)) (Iff (a -> b) (a -> b)) (id (Eq Prop (Iff (Iff (Or b a) b) (a -> b)) (Iff (a -> b) (a -> b))) (congrArg Prop Prop (Iff (Or b a) b) (a -> b) ((d : Prop) => Iff d (a -> b)) (propext (Iff (Or b a) b) (a -> b) (or_iff_left_iff_imp b a)))) (Iff.rfl (a -> b)))
+thm or_iff_right : (a : Prop) -> (b : Prop) -> Not a -> Iff (Or a b) b
+  (a : Prop) => (b : Prop) => (c : Not a) => Iff.mpr (Iff (Or a b) b) (a -> b) (or_iff_right_iff_imp a b) (Not.elim a b c)
+def not_imp_of_and_not.match_1 := (a : Prop) => (b : Prop) => (f0 : And a (Not b) -> (a -> b) -> Prop) => (c : And a (Not b)) => (f1 : a -> b) => (f2 : (d : a) -> (e : Not b) -> (f3 : a -> b) -> f0 (And.intro a (Not b) d e) f3) => And.casesOn a (Not b) ((f : And a (Not b)) => f0 f f1) c ((g : a) => (h : Not b) => f2 g h f1)
+thm not_imp_of_and_not : (a : Prop) -> (b : Prop) -> And a (Not b) -> Not (a -> b)
+  (a : Prop) => (b : Prop) => (c : And a (Not b)) => (f0 : a -> b) => not_imp_of_and_not.match_1 a b (And a (Not b) => (a -> b) => False) c f0 ((d : a) => (e : Not b) => (f1 : a -> b) => e (f1 d))
+thm imp_and : (a : Prop) -> (b : Prop) -> (s0 : Sort(u_1)) -> Iff (s0 -> And a b) (And (s0 -> a) (s0 -> b))
+  (a : Prop) => (b : Prop) => (s0 : Sort(u_1)) => Iff.intro (s0 -> And a b) (And (s0 -> a) (s0 -> b)) ((f0 : s0 -> And a b) => And.intro ((c : s0) -> a) ((d : s0) -> b) ((e : s0) => And.left a b (f0 e)) ((f : s0) => And.right a b (f0 f))) ((g : And (s0 -> a) (s0 -> b)) => (h : s0) => And.intro a b (And.left (s0 -> a) (s0 -> b) g h) (And.right (s0 -> a) (s0 -> b) g h))
+thm and_imp : (a : Prop) -> (b : Prop) -> (c : Prop) -> Iff (And a b -> c) (a -> b -> c)
+  (a : Prop) => (b : Prop) => (c : Prop) => Iff.intro (And a b -> c) (a -> b -> c) ((f0 : And a b -> c) => (d : a) => (e : b) => f0 (And.intro a b d e)) ((f1 : a -> b -> c) => (f : And a b) => and_imp.match_1 a b (And a b => c) f ((g : a) => (h : b) => f1 g h))
+thm not_and : (a : Prop) -> (b : Prop) -> Iff (Not (And a b)) (a -> Not b)
+  (a : Prop) => (b : Prop) => and_imp a b False
+def flip := (s0 : Sort(u)) => (s1 : Sort(v)) => (s2 : Sort(w)) => (f0 : (a : s0) -> (b : s1) -> s2) => (c : s1) => (d : s0) => f0 d c
+thm imp.swap : (a : Prop) -> (b : Prop) -> (c : Prop) -> Iff (a -> b -> c) (b -> a -> c)
+  (a : Prop) => (b : Prop) => (c : Prop) => Iff.intro (a -> b -> c) (b -> a -> c) (flip a b c) (flip b a c)
+thm imp_not_comm : (a : Prop) -> (b : Prop) -> Iff (a -> Not b) (b -> Not a)
+  (a : Prop) => (b : Prop) => imp.swap a b False
+thm not_and' : (a : Prop) -> (b : Prop) -> Iff (Not (And a b)) (b -> Not a)
+  (a : Prop) => (b : Prop) => Iff.trans (Not (And a b)) (a -> Not b) (b -> Not a) (not_and a b) (imp_not_comm a b)
+def and_or_left.match_1 := (a : Prop) => (b : Prop) => (c : Prop) => (f0 : And a (Or b c) -> Prop) => (d : And a (Or b c)) => (f1 : (e : a) -> (f : Or b c) -> f0 (And.intro a (Or b c) e f)) => And.casesOn a (Or b c) ((g : And a (Or b c)) => f0 g) d ((h : a) => (i : Or b c) => f1 h i)
+thm and_or_left : (a : Prop) -> (b : Prop) -> (c : Prop) -> Iff (And a (Or b c)) (Or (And a b) (And a c))
+  (a : Prop) => (b : Prop) => (c : Prop) => Iff.intro (And a (Or b c)) (Or (And a b) (And a c)) ((d : And a (Or b c)) => and_or_left.match_1 a b c (And a (Or b c) => Or (And a b) (And a c)) d ((e : a) => (f : Or b c) => Or.imp b (And a b) c (And a c) (And.intro a b e) (And.intro a c e) f)) ((g : Or (And a b) (And a c)) => Or.rec (And a b) (And a c) (Or (And a b) (And a c) => And a (Or b c)) (And.imp_right b (Or b c) a (Or.inl b c)) (And.imp_right c (Or b c) a (Or.inr b c)) g)
+thm or_and_right : (a : Prop) -> (b : Prop) -> (c : Prop) -> Iff (And (Or a b) c) (Or (And a c) (And b c))
+  (a : Prop) => (b : Prop) => (c : Prop) => Eq.mpr (Iff (And (Or a b) c) (Or (And a c) (And b c))) (Iff (And c (Or a b)) (Or (And a c) (And b c))) (id (Eq Prop (Iff (And (Or a b) c) (Or (And a c) (And b c))) (Iff (And c (Or a b)) (Or (And a c) (And b c)))) (congrArg Prop Prop (And (Or a b) c) (And c (Or a b)) ((d : Prop) => Iff d (Or (And a c) (And b c))) (propext (And (Or a b) c) (And c (Or a b)) (and_comm (Or a b) c)))) (Eq.mpr (Iff (And c (Or a b)) (Or (And a c) (And b c))) (Iff (Or (And c a) (And c b)) (Or (And a c) (And b c))) (id (Eq Prop (Iff (And c (Or a b)) (Or (And a c) (And b c))) (Iff (Or (And c a) (And c b)) (Or (And a c) (And b c)))) (congrArg Prop Prop (And c (Or a b)) (Or (And c a) (And c b)) ((e : Prop) => Iff e (Or (And a c) (And b c))) (propext (And c (Or a b)) (Or (And c a) (And c b)) (and_or_left c a b)))) (Eq.mpr (Iff (Or (And c a) (And c b)) (Or (And a c) (And b c))) (Iff (Or (And a c) (And c b)) (Or (And a c) (And b c))) (id (Eq Prop (Iff (Or (And c a) (And c b)) (Or (And a c) (And b c))) (Iff (Or (And a c) (And c b)) (Or (And a c) (And b c)))) (congrArg Prop Prop (And c a) (And a c) ((f : Prop) => Iff (Or f (And c b)) (Or (And a c) (And b c))) (propext (And c a) (And a c) (and_comm c a)))) (Eq.mpr (Iff (Or (And a c) (And c b)) (Or (And a c) (And b c))) (Iff (Or (And a c) (And b c)) (Or (And a c) (And b c))) (id (Eq Prop (Iff (Or (And a c) (And c b)) (Or (And a c) (And b c))) (Iff (Or (And a c) (And b c)) (Or (And a c) (And b c)))) (congrArg Prop Prop (And c b) (And b c) ((g : Prop) => Iff (Or (And a c) g) (Or (And a c) (And b c))) (propext (And c b) (And b c) (and_comm c b)))) (Iff.rfl (Or (And a c) (And b c))))))
+thm or_and_left : (a : Prop) -> (b : Prop) -> (c : Prop) -> Iff (Or a (And b c)) (And (Or a b) (Or a c))
+  (a : Prop) => (b : Prop) => (c : Prop) => Iff.intro (Or a (And b c)) (And (Or a b) (Or a c)) ((d : Or a (And b c)) => Or.rec a (And b c) (Or a (And b c) => And (Or a b) (Or a c)) ((e : a) => And.intro (Or a b) (Or a c) (Or.inl a b e) (Or.inl a c e)) (And.imp b (Or a b) c (Or a c) (Or.inr a b) (Or.inr a c)) d) ((f : And (Or a b) (Or a c)) => And.rec (Or a b) (Or a c) (And (Or a b) (Or a c) => Or a (And b c)) ((g : Or a b) => Or.rec a b (Or a b => (Or a c -> Or a (And b c))) ((h : a) => Or a c => Or.inl a (And b c) h) (Function.comp b (c -> And b c) (Or a c -> Or a (And b c)) (Or.imp_right c (And b c) a) (And.intro b c)) g) f)
+thm and_or_right : (a : Prop) -> (b : Prop) -> (c : Prop) -> Iff (Or (And a b) c) (And (Or a c) (Or b c))
+  (a : Prop) => (b : Prop) => (c : Prop) => Eq.mpr (Iff (Or (And a b) c) (And (Or a c) (Or b c))) (Iff (Or c (And a b)) (And (Or a c) (Or b c))) (id (Eq Prop (Iff (Or (And a b) c) (And (Or a c) (Or b c))) (Iff (Or c (And a b)) (And (Or a c) (Or b c)))) (congrArg Prop Prop (Or (And a b) c) (Or c (And a b)) ((d : Prop) => Iff d (And (Or a c) (Or b c))) (propext (Or (And a b) c) (Or c (And a b)) (or_comm (And a b) c)))) (Eq.mpr (Iff (Or c (And a b)) (And (Or a c) (Or b c))) (Iff (And (Or c a) (Or c b)) (And (Or a c) (Or b c))) (id (Eq Prop (Iff (Or c (And a b)) (And (Or a c) (Or b c))) (Iff (And (Or c a) (Or c b)) (And (Or a c) (Or b c)))) (congrArg Prop Prop (Or c (And a b)) (And (Or c a) (Or c b)) ((e : Prop) => Iff e (And (Or a c) (Or b c))) (propext (Or c (And a b)) (And (Or c a) (Or c b)) (or_and_left c a b)))) (Eq.mpr (Iff (And (Or c a) (Or c b)) (And (Or a c) (Or b c))) (Iff (And (Or a c) (Or c b)) (And (Or a c) (Or b c))) (id (Eq Prop (Iff (And (Or c a) (Or c b)) (And (Or a c) (Or b c))) (Iff (And (Or a c) (Or c b)) (And (Or a c) (Or b c)))) (congrArg Prop Prop (Or c a) (Or a c) ((f : Prop) => Iff (And f (Or c b)) (And (Or a c) (Or b c))) (propext (Or c a) (Or a c) (or_comm c a)))) (Eq.mpr (Iff (And (Or a c) (Or c b)) (And (Or a c) (Or b c))) (Iff (And (Or a c) (Or b c)) (And (Or a c) (Or b c))) (id (Eq Prop (Iff (And (Or a c) (Or c b)) (And (Or a c) (Or b c))) (Iff (And (Or a c) (Or b c)) (And (Or a c) (Or b c)))) (congrArg Prop Prop (Or c b) (Or b c) ((g : Prop) => Iff (And (Or a c) g) (And (Or a c) (Or b c))) (propext (Or c b) (Or b c) (or_comm c b)))) (Iff.rfl (And (Or a c) (Or b c))))))
+def or_imp.match_1 := (a : Prop) => (b : Prop) => (c : Prop) => (f0 : And (a -> c) (b -> c) -> Prop) => (d : And (a -> c) (b -> c)) => (f1 : (f2 : a -> c) -> (f3 : b -> c) -> f0 (And.intro (a -> c) (b -> c) f2 f3)) => And.casesOn (a -> c) (b -> c) ((e : And (a -> c) (b -> c)) => f0 e) d ((f4 : a -> c) => (f5 : b -> c) => f1 f4 f5)
+thm or_imp : (a : Prop) -> (b : Prop) -> (c : Prop) -> Iff (Or a b -> c) (And (a -> c) (b -> c))
+  (a : Prop) => (b : Prop) => (c : Prop) => Iff.intro (Or a b -> c) (And (a -> c) (b -> c)) ((f0 : Or a b -> c) => And.intro (a -> c) (b -> c) (Function.comp a (Or a b) c f0 (Or.inl a b)) (Function.comp b (Or a b) c f0 (Or.inr a b))) ((d : And (a -> c) (b -> c)) => or_imp.match_1 a b c (And (a -> c) (b -> c) => (Or a b -> c)) d ((f1 : a -> c) => (f2 : b -> c) => (e : Or a b) => Or.rec a b (Or a b => c) f1 f2 e))
+thm not_and_of_not_or_not : (a : Prop) -> (b : Prop) -> Or (Not a) (Not b) -> Not (And a b)
+  (a : Prop) => (b : Prop) => (c : Or (Not a) (Not b)) => Or.elim (Not a) (Not b) (Not (And a b)) c (mt (And a b) a ((d : And a b) => And.left a b d)) (mt (And a b) b ((e : And a b) => And.right a b e))
+def Ne := (s0 : Sort(u)) => (a : s0) => (b : s0) => Not (Eq s0 a b)
+thm ne_of_apply_ne : (s0 : Sort(u_1)) -> (s1 : Sort(u_2)) -> (f0 : s0 -> s1) -> (a : s0) -> (b : s0) -> Ne s1 (f0 a) (f0 b) -> Ne s0 a b
+  (s0 : Sort(u_1)) => (s1 : Sort(u_2)) => (f0 : s0 -> s1) => (a : s0) => (b : s0) => mt (Eq s0 a b) (Eq s1 (f0 a) (f0 b)) (congrArg s0 s1 a b f0)
+def Decidable : Prop -> Sort(0 + 1)
+def Decidable.isFalse : (a : Prop) -> Not a -> Decidable a
+def Decidable.isTrue : (a : Prop) -> a -> Decidable a
+def Decidable.rec : (a : Prop) -> (f0 : Decidable a -> Sort(u)) -> ((b : Not a) -> f0 (Decidable.isFalse a b)) -> ((c : a) -> f0 (Decidable.isTrue a c)) -> (d : Decidable a) -> f0 d
+def Decidable.casesOn := (a : Prop) => (f0 : Decidable a -> Sort(u)) => (b : Decidable a) => (f1 : (c : Not a) -> f0 (Decidable.isFalse a c)) => (f2 : (d : a) -> f0 (Decidable.isTrue a d)) => Decidable.rec a f0 ((e : Not a) => f1 e) ((f : a) => f2 f) b
+def ite := (s0 : Sort(u)) => (a : Prop) => (b : Decidable a) => (c : s0) => (d : s0) => Decidable.casesOn a (Decidable a => s0) b (Not a => d) ((e : a) => c)
+def Eq.ndrec := (s0 : Sort(u2)) => (a : s0) => (f0 : s0 -> Sort(u1)) => (b : f0 a) => (c : s0) => (d : Eq s0 a c) => Eq.rec s0 a ((e : s0) => Eq s0 a e => f0 e) b c d
+thm congr : (s0 : Sort(u)) -> (s1 : Sort(v)) -> (f0 : s0 -> s1) -> (f1 : s0 -> s1) -> (a : s0) -> (b : s0) -> Eq (s0 -> s1) f0 f1 -> Eq s0 a b -> Eq s1 (f0 a) (f1 b)
+  (s0 : Sort(u)) => (s1 : Sort(v)) => (f0 : s0 -> s1) => (f1 : s0 -> s1) => (a : s0) => (b : s0) => (c : Eq (s0 -> s1) f0 f1) => (d : Eq s0 a b) => Eq.rec ((e : s0) -> s1) f0 ((f2 : (f : s0) -> s1) => Eq (s0 -> s1) f0 f2 => Eq s1 (f0 a) (f2 b)) (Eq.rec s0 a ((g : s0) => Eq s0 a g => Eq s1 (f0 a) (f0 g)) (rfl s1 (f0 a)) b d) f1 c
+thm not_false : Not False
+  id False
+def instDecidableFalse := Decidable.isFalse False not_false
+def Decidable.byCases.match_1 := (a : Prop) => (f0 : Decidable a -> Sort(u_1)) => (b : Decidable a) => (f1 : (c : a) -> f0 (Decidable.isTrue a c)) => (f2 : (d : Not a) -> f0 (Decidable.isFalse a d)) => Decidable.casesOn a ((e : Decidable a) => f0 e) b ((f : Not a) => f2 f) ((g : a) => f1 g)
+def Decidable.byCases := (a : Prop) => (s0 : Sort(u)) => (b : Decidable a) => (f0 : a -> s0) => (f1 : Not a -> s0) => Decidable.byCases.match_1 a (Decidable a => s0) b ((c : a) => f0 c) ((d : Not a) => f1 d)
+thm Decidable.em : (a : Prop) -> Decidable a -> Or a (Not a)
+  (a : Prop) => (b : Decidable a) => Decidable.byCases a (Or a (Not a)) b (Or.inl a (Not a)) (Or.inr a (Not a))
+def if_pos.match_1 := (a : Prop) => (f0 : Decidable a -> Prop) => (b : Decidable a) => (f1 : (c : a) -> f0 (Decidable.isTrue a c)) => (f2 : (d : Not a) -> f0 (Decidable.isFalse a d)) => Decidable.casesOn a ((e : Decidable a) => f0 e) b ((f : Not a) => f2 f) ((g : a) => f1 g)
+thm if_pos : (a : Prop) -> (b : Decidable a) -> (c : a) -> (s0 : Sort(u)) -> (d : s0) -> (e : s0) -> Eq s0 (ite s0 a b d e) d  
+  (a : Prop) => (b : Decidable a) => (c : a) => (s0 : Sort(u)) => (d : s0) => (e : s0) => if_pos.match_1 a ((f : Decidable a) => Eq s0 (ite s0 a f d e) d) b
+  (a : Prop) => (b : Decidable a) => (c : a) => (s0 : Sort(u)) => (d : s0) => (e : s0) => ((ha : a) -> Eq s0 (ite s0 a (Decidable.isTrue a ha) d e) d) => (na : Not a) => absurd a (Eq s0 (ite s0 a (Decidable.isFalse a na) d e) d) c na

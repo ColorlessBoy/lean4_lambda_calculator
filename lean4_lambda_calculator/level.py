@@ -52,34 +52,45 @@ class Level:
 
 class SuccLevel(Level):
     def __init__(self, level: LevelArgType) -> None:
-        if isinstance(level, Level):
-            self.level = Level(level)
-        self.symbol = simplify(self.level.symbol + 1)
+        self.origin_level = Level(level)
+        self.symbol = simplify(self.origin_level.symbol + 1)
 
     def __repr__(self) -> str:
-        return f"{self.symbol}"
+        super_str = super().__repr__()
+        if "Piecewise" in super_str:
+            return f"{self.origin_level}+1"
+        return super_str
 
 class PreLevel(Level):
     def __init__(self, level: LevelArgType) -> None:
-        self.origin_symbol = Level(level).symbol
-        self.symbol = simplify(self.origin_symbol - 1)
+        self.origin_level = Level(level).symbol
+        self.symbol = simplify(self.origin_level - 1)
+
+    def __repr__(self) -> str:
+        super_str = super().__repr__()
+        if "Piecewise" in super_str:
+            return f"{self.origin_level}-1"
+        return super_str
 
 class MaxLevel(Level):
     def __init__(self, left: LevelArgType, right: LevelArgType) -> None:
-        self.left = Level(left).symbol
-        self.right = Level(right).symbol
-        self.symbol = simplify(Max(self.left, self.right))
+        self.left = Level(left)
+        self.right = Level(right)
+        self.symbol = simplify(Max(self.left.symbol, self.right.symbol))
     
     def __repr__(self) -> str:
-        return f"Max({self.left},{self.right})"
+        super_str = super().__repr__()
+        if "Piecewise" in super_str:
+            return f"Max({self.left},{self.right})"
+        return super_str
 
 class IMaxLevel(Level):
     def __init__(self, left: LevelArgType, right: LevelArgType) -> None:
-        self.left = Level(left).symbol
-        self.right = Level(right).symbol
+        self.left = Level(left)
+        self.right = Level(right)
         self.symbol = simplify(Piecewise(
-            (0, Eq(self.right, 0)), # 如果 b = 0, 则返回 0
-            (Max(self.left, self.right), True),  # 如果 b ≠ 0，返回 max(succ(a), b)
+            (0, Eq(self.right.symbol, 0)), # 如果 b = 0, 则返回 0
+            (Max(self.left.symbol, self.right.symbol), True),  # 如果 b ≠ 0，返回 max(succ(a), b)
         ))
     
     def __repr__(self) -> str:

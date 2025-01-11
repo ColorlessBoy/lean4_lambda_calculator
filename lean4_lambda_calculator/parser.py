@@ -1,6 +1,6 @@
 from lark import Lark, Transformer, UnexpectedInput
 from lean4_lambda_calculator.expr import BoundVar, Const, Lambda, Forall, App, Sort, Arg, print_expr_by_name, Expr, const_to_boundvar, set_boundvar_name
-from lean4_lambda_calculator.level import SuccLevel, MaxLevel, IMaxLevel, Level
+from lean4_lambda_calculator.level import SuccLevel, MaxLevel, IMaxLevel
 from lean4_lambda_calculator.calculator import calc
 
 class TypeDef:
@@ -25,7 +25,8 @@ expr_grammar = r"""
     start: definition | thm | expr
 
     definition: "def" identifier ":" expr -> typedef
-              | "def" identifier "=" expr -> eqdef
+              | "def" identifier ":=" expr -> eqdef
+              | "def" identifier ":" expr ":=" expr -> projdef
     
     thm: "thm" identifier ":" expr -> thmdef
 
@@ -123,13 +124,13 @@ class ExprTransformer(Transformer):
         return str(items[0])
     
     def succlevel(self, items):
-        return SuccLevel(Level(str(items[0])))
+        return SuccLevel(items[0])
     
     def maxlevel(self, items):
-        return MaxLevel(Level(str(items[0])), Level(str(items[1])))
+        return MaxLevel(items[0], items[1])
     
     def imaxlevel(self, items):
-        return IMaxLevel(Level(str(items[0])), Level(str(items[1])))
+        return IMaxLevel(items[0], items[1])
 
     def sort(self, items):
         return Sort(items[0])
@@ -161,6 +162,11 @@ class ExprTransformer(Transformer):
     
     def eqdef(self, items):
         return EqDef(items[0], items[1])
+    
+    def projdef(self, items):
+        if "Proj" in print_expr_by_name(items[2]):
+            return TypeDef(items[0], items[1])
+        return EqDef(items[0], items[2])
     
     def thmdef(self, items):
         return ThmDef(items[0], items[1])
@@ -226,7 +232,7 @@ if __name__ == "__main__":
     parsed_thm = parser.parse(thm)
     print(parsed_thm)
 
-    thm2 = "def Forall = (a:Sort(u))=>(b:a->Prop)=>((c:a)->b c)"
+    thm2 = "def Forall := (a:Sort(u))=>(b:a->Prop)=>((c:a)->b c)"
     parsed_thm2 = parser.parse(thm2)
     assert isinstance(parsed_thm2, EqDef)
     thm2, thm2_type = calc(parsed_thm2.expr, [], {"Prop":Sort(1)}, {"Prop":Sort(0)})
@@ -238,6 +244,6 @@ if __name__ == "__main__":
     thm3_type, thm3_type_type = calc(parsed_thm3.type, [], {"Prop":Sort(1), "b":Sort("v")}, {"Prop":Sort(0)})
     print(thm3_type, ':', thm3_type_type)
 
-    thm4 = "Sort(u_1) => (#0 -> Sort(u_2)) => (#1 -> #1 #0 -> Prop) => (#2 -> #2 #0 -> Prop) => (#3 -> #3 #0 -> Iff (#3 #1 #0) (#2 #1 #0)) => forall_congr' #4 (#4 => (#4 #0 -> #4 #1 #0)) (#4 => (#4 #0 -> #3 #1 #0)) (#4 => forall_congr' (#4 #0) (#3 #0) (#2 #0) (#1 #0))"
+    thm4 = "def Membership : outParam Sort(u+1) -> Sort(v+1) -> Sort(Max(u+1,v+1))"
     parsed_thm4 = parser.parse(thm4)
     print(parsed_thm4)

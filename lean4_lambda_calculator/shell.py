@@ -48,7 +48,8 @@ class Shell:
             if isinstance(expr, Expr):
                 try:
                     expr, expr_type = calc(expr, [], self.type_pool, self.def_pool, None)
-                    print(Fore.GREEN + "[Proof]" + Style.RESET_ALL, print_expr_by_name(expr_type))
+                    s_expr_type = print_expr_by_name(expr_type)
+                    print(Fore.GREEN + "[Proof]" + Style.RESET_ALL, s_expr_type)
                     next_goals = proof_step(expr_type, self.goals[0], type_pool=self.type_pool, def_pool=self.def_pool)
                     if next_goals is not None:
                         self.goals = next_goals + self.goals[1:]
@@ -71,7 +72,7 @@ class Shell:
                 self.def_pool[expr.name] = expr_clean_all_names(definition)
                 _, expr_type = calc(expr.expr, [], self.type_pool, self.def_pool, None)
                 self.type_pool[expr.name] = expr_clean_all_names(expr_type)
-                print(Fore.CYAN + expr.name, ":" + Style.RESET_ALL, print_expr_by_name(expr_type), Fore.CYAN + "=" + Style.RESET_ALL, print_expr_by_name(expr.expr))
+                print(Fore.CYAN + expr.name, ":" + Style.RESET_ALL, print_expr_by_name(expr_type), Fore.CYAN + ":=" + Style.RESET_ALL, print_expr_by_name(expr.expr))
             except Exception as e:
                 print(Fore.RED + "[Error] " + str(e) + Style.RESET_ALL)
                 return False
@@ -160,7 +161,7 @@ class Shell:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Lean4 Shell")
-    parser.add_argument("--history", type=str, default="./history.txt", help="Path to the history file")
+    parser.add_argument("--history", type=str, default="./script.txt", help="Path to the history file")
     args = parser.parse_args()
 
     shell = Shell(history_file=args.history)
