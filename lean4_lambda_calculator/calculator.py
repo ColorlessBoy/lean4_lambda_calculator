@@ -10,9 +10,10 @@ from lean4_lambda_calculator.expr import Expr, BoundVar, Const, Lambda, Forall, 
 
 import time
 import logging
+import inspect
 
 # 全局日志开关
-LOGGING_ENABLED = False
+LOGGING_ENABLED = True
 
 # 根据日志开关来动态设置日志级别
 if LOGGING_ENABLED:
@@ -27,14 +28,22 @@ else:
         level=logging.CRITICAL,  # 如果禁用日志，设置为 CRITICAL 这样只有最严重的日志会输出
     )
 
-# 记录函数执行时间的装饰器
+# 装饰器：记录函数执行时间并记录调用者
 def log_execution_time(func):
     def wrapper(*args, **kwargs):
+        # 获取调用堆栈的上一层信息
+        caller_frame = inspect.stack()[1]
+        caller_name = caller_frame.function  # 获取调用者的函数名
+
         start_time = time.time()
         result = func(*args, **kwargs)
         end_time = time.time()
         duration_ms = (end_time - start_time) * 1000  # 转换为毫秒
-        logging.info(f"{func.__name__} executed in {duration_ms:.2f} ms")
+
+        # 日志信息中增加调用者名称
+        logging.info(
+            f"Function '{func.__name__}' executed in {duration_ms:.2f} ms. Called by '{caller_name}'."
+        )
         return result
     return wrapper
 

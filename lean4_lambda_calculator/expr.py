@@ -376,7 +376,7 @@ def expr_todef(expr: Expr, def_pool: dict[str, Expr]) -> Expr:
         return expr
     elif isinstance(expr, Const):
         if expr.label in def_pool:
-            return def_pool[expr.label]
+            return expr_rename_level(def_pool[expr.label], set())[0]
         return expr
     elif isinstance(expr, Arg):
         return Arg(expr_todef(expr.type, def_pool), expr.name)
