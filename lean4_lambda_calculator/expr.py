@@ -204,10 +204,12 @@ def print_expr_by_name(expr: Expr, context: Context[Arg] = None) -> str:
             left = f"({print_expr_by_name(expr.var_type, context)})"
         else:
             left = f"{print_expr_by_name(expr.var_type, context)}"
+        context.push(expr.var_type)
         if expr.body.predicate < expr.predicate:
-            right = f"({print_expr_by_name(expr.body, [expr.var_type] + context)})"
+            right = f"({print_expr_by_name(expr.body, context)})"
         else:
-            right = f"{print_expr_by_name(expr.body, [expr.var_type] + context)}"
+            right = f"{print_expr_by_name(expr.body, context)}"
+        context.pop()
         if isinstance(expr, Lambda):
             return f"{left} => {right}"
         else:

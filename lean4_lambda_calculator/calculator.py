@@ -6,7 +6,7 @@ License: MIT
 """
 
 from lean4_lambda_calculator.level import SuccLevel, is_solvable, IMaxLevel
-from lean4_lambda_calculator.expr import Expr, BoundVar, Const, Lambda, Forall, App, Sort, Arg, expr_rename_level, expr_todef, get_sort_eq_conditions, print_expr_by_name
+from lean4_lambda_calculator.expr import Expr, BoundVar, Const, Lambda, Forall, App, Sort, Arg, expr_rename_level, expr_todef, get_sort_eq_conditions, print_expr_by_name, print_expr_by_index
 from lean4_lambda_calculator.Context import Context
 
 import time
@@ -14,7 +14,7 @@ import logging
 import inspect
 
 # 全局日志开关
-LOGGING_ENABLED = True
+LOGGING_ENABLED = False
 
 # 根据日志开关来动态设置日志级别
 if LOGGING_ENABLED:
@@ -53,10 +53,18 @@ def log_execution_time(func):
         return result
     return wrapper
 
+calc_cache:dict[str, tuple[Expr, Expr]] = {}
+def hash_expr(expr: Expr) -> str:
+    return print_expr_by_index(expr)
+
 # 求解表达式的类型
 # 返回化简后的表达式和类型
 @log_execution_time
 def calc(expr: Expr, context: Context[Arg] = None, type_pool: dict[str, Expr] = None, def_pool: dict[str, Expr] = None, used_free_symbols: set[str] = None, type_no_check: bool = False) -> tuple[Expr, Expr]:
+    if not isinstance(expr, Arg):
+        expr_hash = hash_expr(expr)
+        if expr_hash in calc_cache:
+            return calc_cache[expr_hash]
     if context is None:
         context = Context[Arg]()
     if type_pool is None:
@@ -67,7 +75,7 @@ def calc(expr: Expr, context: Context[Arg] = None, type_pool: dict[str, Expr] = 
         used_free_symbols: set[str] = set()
     if isinstance(expr, Sort):
         used_free_symbols.update(str(s) for s in expr.level.symbol.free_symbols)
-        return expr, Sort(SuccLevel(expr.level))
+        rst = (expr, Sort(SuccLevel(expr.level)))
     elif isinstance(expr, Const):
         assert expr.label in type_pool, f"Const {expr.label} is not defined."
         # 常量的类型的定义不需要考虑上下文化简, 直接返回定义的类型 
@@ -77,16 +85,16 @@ def calc(expr: Expr, context: Context[Arg] = None, type_pool: dict[str, Expr] = 
             definition, new_used_free_symbols = expr_rename_level(def_pool[expr.label], used_free_symbols)
             used_free_symbols.update(new_used_free_symbols)
             return definition, expr_type
-        return expr, expr_type
+        rst = (expr, expr_type)
     elif isinstance(expr, Arg):
         arg_type, arg_type_type = calc(expr.type, context, type_pool, def_pool, used_free_symbols, type_no_check=type_no_check)
-        return Arg(arg_type, expr.name), arg_type_type
+        rst = (Arg(arg_type, expr.name), arg_type_type)
     elif isinstance(expr, BoundVar):
         assert expr.index < len(
             context
         ), f"Index {expr.index} out of bounds for context: {context}"
         expr_type = shift_expr(context[expr.index].type, offset=0, step=expr.index+1)
-        return expr, expr_type
+        rst = (expr, expr_type)
     elif isinstance(expr, Forall):
         assert isinstance(expr.var_type, Arg), f"Type of variable in Forall should be Arg, but got {expr.var_type}"
         var_type, var_type_type = calc(expr.var_type, context, type_pool, def_pool, used_free_symbols, type_no_check=type_no_check)
@@ -96,11 +104,11 @@ def calc(expr: Expr, context: Context[Arg] = None, type_pool: dict[str, Expr] = 
             expr.body, context, type_pool, def_pool, used_free_symbols, type_no_check=type_no_check
         )
         return_expr = Forall(var_type, new_body)
-        assert isinstance(var_type_type, Sort), f"The varType's type is not Sort, {expr}" 
-        assert isinstance(body_type, Sort), f"The body's type is not Sort, {expr}" 
+        assert isinstance(var_type_type, Sort), f"The varType's type is not Sort, ({expr.var_type} : {var_type_type})" 
+        assert isinstance(body_type, Sort), f"The body's type is not Sort, ({expr.body} : {body_type})" 
         return_type = Sort(IMaxLevel(var_type_type.level, body_type.level))
         context.pop()
-        return return_expr, return_type
+        rst = (return_expr, return_type)
     elif isinstance(expr, Lambda):
         assert isinstance(expr.var_type, Arg), f"Type of variable in Lambda should be Arg, but got {expr.var_type}"
         var_type, _ = calc(expr.var_type, context, type_pool, def_pool, used_free_symbols, type_no_check=type_no_check)
@@ -112,7 +120,7 @@ def calc(expr: Expr, context: Context[Arg] = None, type_pool: dict[str, Expr] = 
         return_expr = Lambda(var_type, new_body)
         return_type = Forall(var_type, body_type)
         context.pop()
-        return return_expr, return_type
+        rst = (return_expr, return_type)
     elif isinstance(expr, App):
         arg, arg_type = calc(expr.arg, context, type_pool, def_pool, used_free_symbols, type_no_check=type_no_check)
         func, func_type = calc(expr.func, context, type_pool, def_pool, used_free_symbols, type_no_check=type_no_check)
@@ -129,10 +137,15 @@ def calc(expr: Expr, context: Context[Arg] = None, type_pool: dict[str, Expr] = 
         if isinstance(func, Lambda):
             tmp = unshift_expr(func.body, head=arg, offset=0)
             unshifted_funcbody, _ = calc(tmp, context, type_pool, def_pool, used_free_symbols, type_no_check=type_no_check)
-            return unshifted_funcbody, unshifted_funcbody_type
-        return App(func, arg), unshifted_funcbody_type
+            rst = (unshifted_funcbody, unshifted_funcbody_type)
+        else:
+            rst = (App(func, arg), unshifted_funcbody_type)
     else:
         raise ValueError("Unknown expr", expr)
+    
+    if len(context) == 0 and not isinstance(expr, Arg):
+        calc_cache[expr_hash] = rst
+    return rst
 
 @log_execution_time
 def DefEq(target: Expr, source: Expr, context: list[Arg], type_pool: dict[str, Expr], def_pool: dict[str, Expr], used_free_symbols: set[str]=None) -> bool:
