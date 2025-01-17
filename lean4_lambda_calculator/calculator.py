@@ -35,14 +35,19 @@ def log_execution_time(func):
         caller_frame = inspect.stack()[1]
         caller_name = caller_frame.function  # 获取调用者的函数名
 
+        # 获取第一个位置参数
+        first_arg = args[0] if args else None
+        second_arg = args[1] if args and len(args) > 1 else None
+
         start_time = time.time()
         result = func(*args, **kwargs)
         end_time = time.time()
         duration_ms = (end_time - start_time) * 1000  # 转换为毫秒
 
-        # 日志信息中增加调用者名称
+        # 日志信息中增加调用者名称和第一个参数
         logging.info(
-            f"Function '{func.__name__}' executed in {duration_ms:.2f} ms. Called by '{caller_name}'."
+            f"Function '{func.__name__}' executed in {duration_ms:.2f} ms. "
+            f"Called by '{caller_name}'. First argument: {first_arg}. Second argument: {second_arg}."
         )
         return result
     return wrapper
