@@ -165,7 +165,8 @@ def extract_theorem_list(filepath: str):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Lean4 Query Consts")
     parser.add_argument("--output", type=str, default="./query_file.txt", help="Path of output file")
-    parser.add_argument("--input", type=str, default="/Users/penglingwei/.elan/toolchains/leanprover--lean4---v4.14.0-rc2/src/lean/Init/PropLemmas.lean", help="Path of input file")
+    # parser.add_argument("--input", type=str, default="/Users/penglingwei/.elan/toolchains/leanprover--lean4---v4.14.0-rc2/src/lean/Init/PropLemmas.lean", help="Path of input file")
+    parser.add_argument("--input", type=str, default="/Users/penglingwei/.elan/toolchains/leanprover--lean4---v4.14.0-rc2/src/lean/Init/SimpLemmas.lean", help="Path of input file")
     args = parser.parse_args()
 
     query_pool = QueryPool(args.output)

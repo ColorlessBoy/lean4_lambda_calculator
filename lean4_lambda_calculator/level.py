@@ -1,18 +1,24 @@
-from sympy import symbols, Eq, solve, Max, Expr as SymExpr, simplify, satisfiable, sympify, Piecewise
-from typing import Union, List, Set
+from sympy import symbols, Eq, solve, Max, simplify, satisfiable, sympify, Piecewise, Integer, Expr as SymExpr
 import re
 
-# LevelArgType 可以是整数或 sympy 表达式
-LevelArgType = Union[str, int, SymExpr, 'Level']
 
 class Level:
-    def __init__(self, level: LevelArgType) -> None:
+    def __init__(self, level: str | int | SymExpr) -> None:
         if isinstance(level, str):
-            self.symbol = symbols(level, integer=True, nonnegative=True)
-        elif isinstance(level, SymExpr) or isinstance(level, int):
-            self.symbol: SymExpr = simplify(level)  # 将输入简化为 sympy 表达式
+            try:
+                int_level = int(level)  # 尝试将level转换为整数
+                assert int_level >= 0, f"Invalid level {level}, which is small than 0."
+                self.symbol = Integer(int_level)
+            except ValueError:
+                # 如果转换失败，说明level不是有效的整数
+                self.symbol = symbols(level, integer=True, nonnegative=True)
+        elif isinstance(level, int):
+            assert level >= 0, f"Invalid level number {level}, which is small than 0."
+            self.symbol = Integer(level)  # 将输入简化为 sympy 表达式
+        elif isinstance(level, SymExpr):
+            self.symbol = level
         else:
-            self.symbol = level.symbol
+            raise TypeError("input arg level should be str, int")
 
     def __repr__(self) -> str:
         return str(self.symbol)
@@ -25,16 +31,7 @@ class Level:
             return bool(rst)
         return False
 
-    def __lt__(self, other: "Level") -> bool:
-        return self.symbol < other.symbol
-
-    def __le__(self, other: "Level") -> bool:
-        return self.symbol <= other.symbol
-
-    def __add__(self, other: Union[int, SymExpr]) -> "Level":
-        return Level(self.symbol + other)
-
-    def get_variables(self) -> Set[str]:
+    def get_variables(self) -> set[str]:
         """获取表达式中的所有变量名字符串"""
         return {str(symbol) for symbol in self.symbol.free_symbols}
 
@@ -50,9 +47,11 @@ class Level:
             return True, solution
         return False, None
 
+LevelType = str | int | Level
+
 class SuccLevel(Level):
-    def __init__(self, level: LevelArgType) -> None:
-        self.origin_level = Level(level)
+    def __init__(self, level: LevelType) -> None:
+        self.origin_level = level if isinstance(level, Level) else Level(level)
         self.symbol = simplify(self.origin_level.symbol + 1)
 
     def __repr__(self) -> str:
@@ -61,21 +60,10 @@ class SuccLevel(Level):
             return f"{self.origin_level}+1"
         return super_str
 
-class PreLevel(Level):
-    def __init__(self, level: LevelArgType) -> None:
-        self.origin_level = Level(level).symbol
-        self.symbol = simplify(self.origin_level - 1)
-
-    def __repr__(self) -> str:
-        super_str = super().__repr__()
-        if "Piecewise" in super_str:
-            return f"{self.origin_level}-1"
-        return super_str
-
 class MaxLevel(Level):
-    def __init__(self, left: LevelArgType, right: LevelArgType) -> None:
-        self.left = Level(left)
-        self.right = Level(right)
+    def __init__(self, left: LevelType, right: LevelType) -> None:
+        self.left = left if isinstance(left, Level) else Level(left)
+        self.right = right if isinstance(right, Level) else Level(right) 
         self.symbol = simplify(Max(self.left.symbol, self.right.symbol))
     
     def __repr__(self) -> str:
@@ -85,9 +73,9 @@ class MaxLevel(Level):
         return super_str
 
 class IMaxLevel(Level):
-    def __init__(self, left: LevelArgType, right: LevelArgType) -> None:
-        self.left = Level(left)
-        self.right = Level(right)
+    def __init__(self, left: Level, right: Level) -> None:
+        self.left = left if isinstance(left, Level) else Level(left)
+        self.right = right if isinstance(right, Level) else Level(right) 
         self.symbol = simplify(Piecewise(
             (0, Eq(self.right.symbol, 0)), # 如果 b = 0, 则返回 0
             (Max(self.left.symbol, self.right.symbol), True),  # 如果 b ≠ 0，返回 max(succ(a), b)
@@ -122,12 +110,12 @@ def _get_new_name(used_names: set[str], used_new_names: set[str]) -> str:
             return name
         index += 1
 
-def is_solvable(equations_str: List[str]) -> bool:
+def is_solvable(equations_str: list[str]) -> bool:
     """
     检查一个字符串列表形式的方程组是否有解。
 
     参数:
-        equations_str (List[str]): 方程组的字符串列表，例如 ["x + y = 10", "y - z = 2"]。
+        equations_str (list[str]): 方程组的字符串列表，例如 ["x + y = 10", "y - z = 2"]。
     
     返回:
         bool: 如果方程组有解，返回 True；否则返回 False。
@@ -170,7 +158,7 @@ def parse_level(code: str) -> Level:
     tokens = _tokenize(code)
     return _parse_level(tokens)
 
-def _parse_level(tokens: List[str]) -> Level:
+def _parse_level(tokens: list[str]) -> Level:
     """解析 Level 对象"""
     token = tokens.pop(0)
     if token.isdigit():
@@ -203,7 +191,7 @@ def _parse_level(tokens: List[str]) -> Level:
         else:
             return Level(token)
 
-def _tokenize(expr: str) -> List[str]:
+def _tokenize(expr: str) -> list[str]:
     """将输入字符串拆分为标记列表"""
     # 使用正则表达式匹配括号、标识符和数字
     pattern = r"[()+]|[A-Za-z0-9_.\u00A0-\uFFFF]+|\S"

@@ -7,17 +7,27 @@ class TypeDef:
     def __init__(self, name: str, type: Expr):
         self.name = name
         self.type = type
+    
+    def __repr__(self):
+        return f"def {self.name} : {self.type}"
+        pass
 
 class EqDef:
     def __init__(self, name: str, expr: Expr):
         self.name = name
         self.expr = expr
 
+    def __repr__(self):
+        return f"def {self.name} := {self.type}"
+        pass
+
 class ThmDef:
     def __init__(self, name: str, type: Expr):
         self.name = name
         self.type = type
 
+    def __repr__(self):
+        return f"thm {self.name} : {self.type}"
 
 # 优先级: Sort == Const == BoundVar > App > Lambda > Forall > Arg
 # 定义 Lark 文法
@@ -60,7 +70,7 @@ expr_grammar = r"""
 
     // 层级表达式
     level: level "+" "1" -> succlevel
-         | INT -> unwrap
+         | INT -> integer
          | identifier -> unwrap
          | "Max" "(" level "," level ")"  -> maxlevel
          | "IMax" "(" level "," level ")"  -> imaxlevel
@@ -119,6 +129,9 @@ class ExprTransformer(Transformer):
     def unwrap(self, items):
         rst = items[0]
         return rst
+    
+    def integer(self, items):
+        return int(items[0])
     
     def identifier(self, items):
         return str(items[0])

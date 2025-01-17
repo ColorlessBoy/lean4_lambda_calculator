@@ -5,7 +5,7 @@ Date: 2024-12-12
 License: MIT
 """
 
-from lean4_lambda_calculator.level import Level, level_subs_symbols, Eq, parse_level
+from lean4_lambda_calculator.level import Level, level_subs_symbols, Eq
 
 class Expr:
     def __hash__(self):
@@ -19,10 +19,8 @@ class Sort(Expr):
     def __init__(self, level: str | int | Level):
         if isinstance(level, Level):
             self.level: Level = level
-        elif isinstance(level, int):
-            self.level: Level = Level(level)
         else:
-            self.level: Level = parse_level(level)
+            self.level: Level = Level(level)
     
     def __eq__(self, value):
         if isinstance(value, Sort):
@@ -370,7 +368,7 @@ def _set_new_level(expr: Expr, used_free_symbols: set[str], renamed_symbols: dic
         raise ValueError("Unknown expr", expr)
 
 def expr_todef(expr: Expr, def_pool: dict[str, Expr]) -> Expr:
-    if len(def_pool) == 0:
+    if def_pool is None or len(def_pool) == 0:
         return expr
     if isinstance(expr, Sort):
         return expr
