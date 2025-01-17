@@ -47,7 +47,7 @@ class Shell:
         if self.is_in_proof:
             if isinstance(expr, Expr):
                 try:
-                    expr, expr_type = calc(expr, [], self.type_pool, self.def_pool, None)
+                    expr, expr_type = calc(expr, None, self.type_pool, self.def_pool, None)
                     s_expr_type = print_expr_by_name(expr_type)
                     print(Fore.GREEN + "[Proof]" + Style.RESET_ALL, s_expr_type)
                     next_goals = proof_step(expr_type, self.goals[0], type_pool=self.type_pool, def_pool=self.def_pool)
@@ -68,7 +68,7 @@ class Shell:
         if isinstance(expr, EqDef):
             # 展开定义 
             try:
-                definition, expr_type = calc(expr_todef(expr.expr, self.def_pool), [], self.type_pool, self.def_pool, None)
+                definition, expr_type = calc(expr_todef(expr.expr, self.def_pool), None, self.type_pool, self.def_pool, None)
                 self.def_pool[expr.name] = expr_clean_all_names(definition)
                 self.type_pool[expr.name] = expr_clean_all_names(expr_type)
                 print(Fore.CYAN + expr.name, ":" + Style.RESET_ALL, print_expr_by_name(expr_type), Fore.CYAN + ":=" + Style.RESET_ALL, print_expr_by_name(expr.expr))
@@ -76,20 +76,20 @@ class Shell:
                 print(Fore.RED + "[Error] " + str(e) + Style.RESET_ALL)
                 return False
         elif isinstance(expr, TypeDef):
-            expr_type, _ = calc(expr_todef(expr.type, self.def_pool), [], self.type_pool, self.def_pool, None)
+            expr_type, _ = calc(expr_todef(expr.type, self.def_pool), None, self.type_pool, self.def_pool, None)
             self.type_pool[expr.name] = expr_clean_all_names(expr_type)
             print(Fore.CYAN + expr.name, ":" + Style.RESET_ALL, print_expr_by_name(expr.type))
         elif isinstance(expr, ThmDef):
             # 证明
             self.is_in_proof = True
-            expr_type, _ = calc(expr_todef(expr.type, self.def_pool), [], self.type_pool, self.def_pool, None)
+            expr_type, _ = calc(expr_todef(expr.type, self.def_pool), None, self.type_pool, self.def_pool, None)
             self.type_pool[expr.name] = expr_clean_all_names(expr_type)
             self.goals = [expr.type]
             print(Fore.CYAN + expr.name, ":" + Style.RESET_ALL, print_expr_by_name(expr.type))
             print(Fore.GREEN + "[Proof] [Goal]" + Style.RESET_ALL, print_expr_by_name(expr.type))
         else:
             try: 
-                expr, expr_type = calc(expr, [], self.type_pool, self.def_pool, None)
+                expr, expr_type = calc(expr, None, self.type_pool, self.def_pool, None)
                 print(print_expr_by_name(expr_type))
             except Exception as e:
                 print(Fore.RED + "[Error] " + str(e) + Style.RESET_ALL)

@@ -7,6 +7,7 @@ License: MIT
 
 from lean4_lambda_calculator.level import SuccLevel, is_solvable, IMaxLevel
 from lean4_lambda_calculator.expr import Expr, BoundVar, Const, Lambda, Forall, App, Sort, Arg, expr_rename_level, expr_todef, get_sort_eq_conditions, print_expr_by_name
+from lean4_lambda_calculator.Context import Context
 
 import time
 import logging
@@ -52,14 +53,12 @@ def log_execution_time(func):
         return result
     return wrapper
 
-memoization_cache = {}
-
 # 求解表达式的类型
 # 返回化简后的表达式和类型
 @log_execution_time
-def calc(expr: Expr, context: list[Arg] = None, type_pool: dict[str, Expr] = None, def_pool: dict[str, Expr] = None, used_free_symbols: set[str] = None, type_no_check: bool = False) -> tuple[Expr, Expr]:
+def calc(expr: Expr, context: Context[Arg] = None, type_pool: dict[str, Expr] = None, def_pool: dict[str, Expr] = None, used_free_symbols: set[str] = None, type_no_check: bool = False) -> tuple[Expr, Expr]:
     if context is None:
-        context = []
+        context = Context[Arg]()
     if type_pool is None:
         type_pool = {}
     if def_pool is None:
@@ -92,25 +91,27 @@ def calc(expr: Expr, context: list[Arg] = None, type_pool: dict[str, Expr] = Non
         assert isinstance(expr.var_type, Arg), f"Type of variable in Forall should be Arg, but got {expr.var_type}"
         var_type, var_type_type = calc(expr.var_type, context, type_pool, def_pool, used_free_symbols, type_no_check=type_no_check)
         assert isinstance(var_type, Arg), f"Type of variable in Forall should be Arg, but got {var_type}"
-        new_context = [var_type] + context
+        context.push(var_type)
         new_body, body_type = calc(
-            expr.body, new_context, type_pool, def_pool, used_free_symbols, type_no_check=type_no_check
+            expr.body, context, type_pool, def_pool, used_free_symbols, type_no_check=type_no_check
         )
         return_expr = Forall(var_type, new_body)
         assert isinstance(var_type_type, Sort), f"The varType's type is not Sort, {expr}" 
         assert isinstance(body_type, Sort), f"The body's type is not Sort, {expr}" 
         return_type = Sort(IMaxLevel(var_type_type.level, body_type.level))
+        context.pop()
         return return_expr, return_type
     elif isinstance(expr, Lambda):
         assert isinstance(expr.var_type, Arg), f"Type of variable in Lambda should be Arg, but got {expr.var_type}"
         var_type, _ = calc(expr.var_type, context, type_pool, def_pool, used_free_symbols, type_no_check=type_no_check)
         assert isinstance(var_type, Arg), f"Type of variable in Forall should be Arg, but got {var_type}"
-        new_context = [var_type] + context
+        context.push(var_type)
         new_body, body_type = calc(
-            expr.body, new_context, type_pool, def_pool, used_free_symbols, type_no_check=type_no_check
+            expr.body, context, type_pool, def_pool, used_free_symbols, type_no_check=type_no_check
         )
         return_expr = Lambda(var_type, new_body)
         return_type = Forall(var_type, body_type)
+        context.pop()
         return return_expr, return_type
     elif isinstance(expr, App):
         arg, arg_type = calc(expr.arg, context, type_pool, def_pool, used_free_symbols, type_no_check=type_no_check)
@@ -199,11 +200,11 @@ def unshift_expr(expr: Expr, offset: int, head: Expr):
     return expr
 
 @log_execution_time
-def proof_step(action: Expr, goal: Expr, diff_context: list[Arg] = None, same_context: list[Arg] = None, type_pool:dict[str,Expr]=None, def_pool:dict[str,Expr]=None) -> list[Expr] | None:
+def proof_step(action: Expr, goal: Expr, diff_context: Context[Arg] = None, same_context: Context[Arg] = None, type_pool:dict[str,Expr]=None, def_pool:dict[str,Expr]=None) -> list[Expr] | None:
     if diff_context is None:
-        diff_context = []
+        diff_context = Context[Arg]()
     if same_context is None:
-        same_context = []
+        same_context = Context[Arg]()
     if DefEq(action, goal, diff_context + same_context, type_pool, def_pool):
         goals: list[Expr] = []
         for arg in diff_context:
@@ -214,9 +215,11 @@ def proof_step(action: Expr, goal: Expr, diff_context: list[Arg] = None, same_co
         return goals
     if isinstance(action, Forall):
         if len(diff_context) == 0 and isinstance(goal, Forall) and DefEq(action.var_type, goal.var_type, diff_context + same_context, type_pool, def_pool):
-            return proof_step(action.body, goal.body, diff_context, [action.var_type] + same_context, type_pool, def_pool)
+            same_context.push(action.var_type)
+            return proof_step(action.body, goal.body, diff_context, same_context, type_pool, def_pool)
         else:
-            return proof_step(action.body, shift_expr(goal), [action.var_type] + diff_context, same_context, type_pool, def_pool)
+            diff_context.push(action.var_type)
+            return proof_step(action.body, shift_expr(goal), diff_context, same_context, type_pool, def_pool)
     # 什么都没证明 
     return None
 
@@ -235,16 +238,16 @@ if __name__ == "__main__":
     ConstProp = Const("Prop")
     Iff_refl = Forall(Prop, App(App(Const("Iff"), BoundVar(0)), BoundVar(0)))
     action1 = Lambda(Prop, App(App(Iff_intro, BoundVar(0)), BoundVar(0)))
-    _, action1_type = calc(action1, [], type_pool, def_pool)
+    _, action1_type = calc(action1, None, type_pool, def_pool)
     goals1 = proof_step(action1_type, Iff_refl)
     print(goals1)
 
     action2 = Lambda(Prop, Lambda(Forall(BoundVar(0), BoundVar(1)), BoundVar(0)))
-    _, action2_type = calc(action2, [], type_pool, def_pool)
+    _, action2_type = calc(action2, None, type_pool, def_pool)
     goals2 = proof_step(action2_type, goals1[0])
     print(goals2)
 
     action3 = Lambda(Prop, Lambda(BoundVar(0), BoundVar(0)))
-    _, action3_type = calc(action3, [], type_pool, def_pool)
+    _, action3_type = calc(action3, None, type_pool, def_pool)
     goals3 = proof_step(action3_type, goals1[1])
     print(goals3)

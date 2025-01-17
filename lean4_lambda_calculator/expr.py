@@ -6,6 +6,7 @@ License: MIT
 """
 
 from lean4_lambda_calculator.level import Level, level_subs_symbols, Eq
+from lean4_lambda_calculator.Context import Context
 
 class Expr:
     def __hash__(self):
@@ -173,9 +174,9 @@ class App(Expr):
         return 3
 
 # 优先级: Sort == Const == BoundVar > App > Lambda > Forall > Arg
-def print_expr_by_name(expr: Expr, context: list[Arg] = None) -> str:
+def print_expr_by_name(expr: Expr, context: Context[Arg] = None) -> str:
     if context is None:
-        context = []
+        context = Context[Arg]()
     if isinstance(expr, Sort) or isinstance(expr, Const):
         return str(expr)
     elif isinstance(expr, Arg):
