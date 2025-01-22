@@ -105,6 +105,11 @@ def _cleanName (name : Name) (context : List String) : String :=
         candidate
   getUniqueName context.length baseName
 
+def _validName (name : Name) : String :=
+  match name with
+  | Name.num pre idx => s!"{pre}_{idx}"
+  | _ => s!"{name}"
+
 def _isBinderUsed (body : Expr) (offset : Nat := 0) : Bool :=
   match body with
   | Expr.bvar idx => idx == offset
@@ -113,6 +118,19 @@ def _isBinderUsed (body : Expr) (offset : Nat := 0) : Bool :=
     _isBinderUsed ty offset || _isBinderUsed body (offset + 1)
   | Expr.letE _ _ value body _ =>
     _isBinderUsed value offset || _isBinderUsed body (offset + 1)
+  | Expr.mdata _ value => _isBinderUsed value offset
+  | Expr.proj _ _ st => _isBinderUsed st offset
+  | _ => false
+
+def _hasProj (body : Expr) : Bool :=
+  match body with
+  | Expr.app f arg => _hasProj f || _hasProj arg
+  | Expr.lam _ ty body _ | Expr.forallE _ ty body _ =>
+    _hasProj ty || _hasProj body
+  | Expr.letE _ _ value body _ =>
+    _hasProj value || _hasProj body
+  | Expr.mdata _ value => _hasProj value
+  | Expr.proj _ _ _ => true
   | _ => false
 
 def _transformExpr (expr : Expr) (context : List String) : MetaM String := do
@@ -124,12 +142,15 @@ def _transformExpr (expr : Expr) (context : List String) : MetaM String := do
     match lvl with
     | Level.zero   => pure "Prop"
     | Level.succ prelvl   =>
-      let slvl ← printLevel prelvl
-      pure s!"Type {slvl}"
+      if prelvl == 0 then
+        pure "Type"
+      else
+        let slvl ← printLevel prelvl
+        pure s!"Type {slvl}"
     | _      =>
       let slvl ← printLevel lvl
       pure s!"Sort {slvl}"
-  | Expr.const name _ => pure s!"{name}"
+  | Expr.const name _ => pure (_validName name)
   | Expr.app f arg =>
     let mut fStr ← _transformExpr f context
     let mut argStr ← _transformExpr arg context
@@ -188,40 +209,55 @@ def _transformExpr (expr : Expr) (context : List String) : MetaM String := do
     pure s!"(let {name} := {value} ; {body})"
   | Expr.lit _ => pure s!"({expr})"
   | Expr.mdata _ _ => pure s!"({expr})"
-  | Expr.proj _ _ _ => pure s!"({expr})"
+  | Expr.proj _ idx st =>
+    let st ← _transformExpr st context
+    pure s!"{st}.{idx}"
 
 def transformExpr (name : Name) : MetaM String := do
   let env ← getEnv
   match env.find? name with
   | some (ConstantInfo.axiomInfo ax) =>
     -- 公理：只有类型，没有值
+    let name := _validName name
     let typeStr ← _transformExpr ax.type []
     pure s!"axiom {name} : {typeStr}"
   | some (ConstantInfo.thmInfo thm) =>
     -- 定理：有类型和证明值
+    let name := _validName name
     let typeStr ← _transformExpr thm.type []
-    let valueStr ← _transformExpr thm.value []
-    pure s!"theorem {name} : {typeStr} := \n  {valueStr}"
+    if _hasProj thm.value then
+      pure s!"axiom {name} : {typeStr}"
+    else
+      let valueStr ← _transformExpr thm.value []
+      pure s!"theorem {name} : {typeStr} := \n  {valueStr}"
   | some (ConstantInfo.defnInfo defn) =>
     -- 定义：有类型和定义体
+    let name := _validName name
     let typeStr ← _transformExpr defn.type []
-    let valueStr ← _transformExpr defn.value []
-    pure s!"def {name} : {typeStr} := \n  {valueStr}"
+    if _hasProj defn.value then
+      pure s!"axiom {name} : {typeStr}"
+    else
+      let valueStr ← _transformExpr defn.value []
+      pure s!"def {name} : {typeStr} := \n  {valueStr}"
   | some (ConstantInfo.ctorInfo ctor) =>
     -- 构造函数：有类型，但无单独定义值
+    let name := _validName ctor.name
     let typeStr ← _transformExpr ctor.type []
-    pure s!"axiom {ctor.name} : {typeStr}"
+    pure s!"axiom {name} : {typeStr}"
   | some (ConstantInfo.recInfo rec) =>
     -- 消去规则（recursor）：有类型，但无定义值
+    let name := _validName rec.name
     let typeStr ← _transformExpr rec.type []
-    pure s!"axiom {rec.name} : {typeStr}"
+    pure s!"axiom {name} : {typeStr}"
   | some (ConstantInfo.inductInfo ind) =>
     -- 归纳定义：有类型，但无定义值
+    let name := _validName ind.name
     let typeStr ← _transformExpr ind.type []
-    pure s!"axiom {ind.name} : {typeStr}"
+    pure s!"axiom {name} : {typeStr}"
   | some (ConstantInfo.opaqueInfo val) =>
+    let name := _validName val.name
     let typeStr ← _transformExpr val.value []
-    pure s!"axiom {val.name} : {typeStr}"
+    pure s!"axiom {name} : {typeStr}"
   | some (ConstantInfo.quotInfo val) =>
     match val.kind with
     | QuotKind.type =>

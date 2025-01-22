@@ -33,7 +33,7 @@ def query_const(name: str) -> tuple[str, str]:
 def query_deps(name: str) -> tuple[list[str], str]:
     cmd = f'lake env lean --run lean4_lambda_calculator/QueryDeps.lean "{name}"'
     code, error = execute(cmd)
-    deps = [name for name in code.split('\n') if len(name) > 0]
+    deps = [name for name in code.split('\t') if len(name) > 0]
     return deps, error
 
 class QueryPool:
@@ -79,7 +79,7 @@ def extract_theorem_list(filepath: str) -> list[str]:
                 names.extend([thm for _, thm in thms])
     return names
 
-def dfs_deps(name: str, deps: list[str], visited: set[str]):
+def dfs_deps(name: str, deps: list[str], visited: set[str], axioms: set[str], noncomputable: set[str]):
     # 深度优先搜索优化
     if name in visited:
         return
@@ -89,8 +89,13 @@ def dfs_deps(name: str, deps: list[str], visited: set[str]):
     if len(error) > 0:
         print(f"query_deps() failed for {name}: {error}")
     else:
-        for tmp_name in tmp_deps:
-            dfs_deps(tmp_name, deps, visited)
+        t = tmp_deps[0] 
+        if t == "axiom":
+            axioms.add(name)
+        for tmp_name in tmp_deps[1:]:
+            dfs_deps(tmp_name, deps, visited, axioms, noncomputable)
+            if tmp_name in axioms:
+                noncomputable.add(name) # uncomputable deps 
         deps.append(name)
 
 if __name__ == "__main__":
@@ -105,8 +110,10 @@ if __name__ == "__main__":
     names = extract_theorem_list(filepath)
     deps: list[str] = []
     visited = set()
+    axioms = set()
+    noncomputable = set()
     for name in tqdm(names):
-        dfs_deps(name, deps, visited)
+        dfs_deps(name, deps, visited, axioms, noncomputable)
     for name in tqdm(deps):
         code = query_pool.query(name)
         with open(args.output, '+a') as f:

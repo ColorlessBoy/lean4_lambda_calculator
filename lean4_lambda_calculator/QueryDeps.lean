@@ -38,45 +38,72 @@ def _getDeps (expr : Expr) (context : List String) : MetaM (List String) := do
     pure context
   | _ => pure context
 
-def getDeps (name : Name) : MetaM (List String):= do
+def _hasProj (body : Expr) : Bool :=
+  match body with
+  | Expr.app f arg => _hasProj f || _hasProj arg
+  | Expr.lam _ ty body _ | Expr.forallE _ ty body _ =>
+    _hasProj ty || _hasProj body
+  | Expr.letE _ _ value body _ =>
+    _hasProj value || _hasProj body
+  | Expr.mdata _ value => _hasProj value
+  | Expr.proj _ _ _ => true
+  | _ => false
+
+def getDeps (name : Name) : MetaM (String × (List String)) := do
   let env ← getEnv
   match env.find? name with
   | some (ConstantInfo.axiomInfo ax) =>
     -- 公理：只有类型，没有值
     let deps ← _getDeps ax.type []
-    pure deps
+    pure ("axiom", deps)
   | some (ConstantInfo.thmInfo thm) =>
     -- 定理：有类型和证明值
     let context ← _getDeps thm.type []
     let deps ← _getDeps thm.value context
-    pure deps
+    if _hasProj thm.value then
+      pure ("axiom", deps)
+    else
+      pure ("theorem", deps)
   | some (ConstantInfo.defnInfo defn) =>
     -- 定义：有类型和定义体
     -- 定理：有类型和证明值
     let context ← _getDeps defn.type []
     let deps ← _getDeps defn.value context
-    pure deps
+    if _hasProj defn.value then
+      pure ("axiom", deps)
+    else
+      pure ("def", deps)
   | some (ConstantInfo.ctorInfo ctor) =>
     -- 构造函数：有类型，但无单独定义值
     let deps ← _getDeps ctor.type []
-    pure deps
+    pure ("axiom", deps)
   | some (ConstantInfo.recInfo rec) =>
     -- 消去规则（recursor）：有类型，但无定义值
     let deps ← _getDeps rec.type []
-    pure deps
+    pure ("axiom", deps)
   | some (ConstantInfo.inductInfo ind) =>
     -- 归纳定义：有类型，但无定义值
     let deps ← _getDeps ind.type []
-    pure deps
-  | _ => pure []
+    pure ("axiom", deps)
+  | some (ConstantInfo.quotInfo val) =>
+    match val.kind with
+    | QuotKind.type =>
+      pure ("axiom", [])
+    | QuotKind.ctor =>
+      pure ("axiom", ["Quot"])
+    | QuotKind.lift =>
+      pure ("axiom", ["Eq", "Quot"])
+    | QuotKind.ind =>
+      pure ("axiom", ["Quot", "Quot.mk"])
+  | _ => pure ("", [])
 
 -- 在 IO 中运行 MetaM
 def runMetaMInIO (metaCtx: Meta.Context) (metaState: Meta.State) (coreCtx: Core.Context) (coreStateRef : ST.Ref IO.RealWorld Core.State
 )  (constName : String) : IO Unit := do
   let res ← ((getDeps (parseName constName)).run metaCtx metaState coreCtx coreStateRef).toBaseIO
   match res with
-  | .ok (info, _) =>
-    IO.println ("\n".intercalate info)
+  | .ok ((t, deps), _) =>
+    IO.println ("\t".intercalate ([t] ++ deps))
   | .error err =>
     let errorMsg ← err.toMessageData.toString
     IO.eprintln s!"Error: {constName} {errorMsg}"
