@@ -69,10 +69,7 @@ def getDeps (name : Name) : MetaM (String × (List String)) := do
     -- 定理：有类型和证明值
     let context ← _getDeps defn.type []
     let deps ← _getDeps defn.value context
-    if _hasProj defn.value then
-      pure ("axiom", deps)
-    else
-      pure ("def", deps)
+    pure ("def", deps)
   | some (ConstantInfo.ctorInfo ctor) =>
     -- 构造函数：有类型，但无单独定义值
     let deps ← _getDeps ctor.type []

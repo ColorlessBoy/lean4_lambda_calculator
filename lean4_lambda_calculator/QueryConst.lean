@@ -133,6 +133,12 @@ def _hasProj (body : Expr) : Bool :=
   | Expr.proj _ _ _ => true
   | _ => false
 
+def isGeneratedCasesOn (name : Name) : MetaM Bool := do
+  if name.toString |>.endsWith "casesOn" then
+    pure true
+  else
+    pure false
+
 def _transformExpr (expr : Expr) (context : List String) : MetaM String := do
   match expr with
   | Expr.bvar idx => pure context[idx]!
@@ -232,32 +238,46 @@ def transformExpr (name : Name) : MetaM String := do
       pure s!"theorem {name} : {typeStr} := \n  {valueStr}"
   | some (ConstantInfo.defnInfo defn) =>
     -- 定义：有类型和定义体
-    let name := _validName name
+    let nameStr := _validName name
     let typeStr ← _transformExpr defn.type []
-    if _hasProj defn.value then
-      pure s!"axiom {name} : {typeStr}"
+    let valueStr ← _transformExpr defn.value []
+    if ← (isGeneratedCasesOn name) then
+      pure s!"-- def {nameStr} : {typeStr} := \n--  {valueStr}"
     else
-      let valueStr ← _transformExpr defn.value []
-      pure s!"def {name} : {typeStr} := \n  {valueStr}"
+      pure s!"def {nameStr} : {typeStr} := \n  {valueStr}"
   | some (ConstantInfo.ctorInfo ctor) =>
     -- 构造函数：有类型，但无单独定义值
     let name := _validName ctor.name
     let typeStr ← _transformExpr ctor.type []
-    pure s!"axiom {name} : {typeStr}"
+    pure s!"-- ctor {name} : {typeStr}"
   | some (ConstantInfo.recInfo rec) =>
     -- 消去规则（recursor）：有类型，但无定义值
     let name := _validName rec.name
     let typeStr ← _transformExpr rec.type []
-    pure s!"axiom {name} : {typeStr}"
+    pure s!"-- recursor {name} : {typeStr}"
   | some (ConstantInfo.inductInfo ind) =>
-    -- 归纳定义：有类型，但无定义值
+    -- 归纳定义：需要生成完整的 `inductive` 声明以及所有构造器
     let name := _validName ind.name
     let typeStr ← _transformExpr ind.type []
-    pure s!"axiom {name} : {typeStr}"
+    let constructors ← ind.ctors.mapM fun ctorName => do
+      match env.find? ctorName with
+      | some (ConstantInfo.ctorInfo ctor) =>
+        let ctorType ← _transformExpr ctor.type []
+        let ctorName := _validName ctor.name
+        -- 去掉前缀部分
+        let shortName := ctorName.splitOn "." |>.getLast? |>.getD ctorName
+        pure s!"| {shortName} : {ctorType}"
+      | _ => throwError s!"Constructor {ctorName} not found"
+    let ctorsStr := String.intercalate "\n  " constructors
+    -- 根据 ctorsStr 是否为空决定是否添加 `where` 和构造器部分
+    if ctorsStr.isEmpty then
+      pure s!"inductive {name} : {typeStr}"
+    else
+      pure s!"inductive {name} : {typeStr} where\n  {ctorsStr}"
   | some (ConstantInfo.opaqueInfo val) =>
     let name := _validName val.name
     let typeStr ← _transformExpr val.value []
-    pure s!"axiom {name} : {typeStr}"
+    pure s!"opaque {name} : {typeStr}"
   | some (ConstantInfo.quotInfo val) =>
     match val.kind with
     | QuotKind.type =>
