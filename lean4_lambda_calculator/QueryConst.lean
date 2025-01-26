@@ -214,7 +214,9 @@ def _transformExpr (expr : Expr) (context : List String) : MetaM String := do
     let body ← _transformExpr body ([name] ++ context)
     pure s!"(let {name} := {value} ; {body})"
   | Expr.lit _ => pure s!"({expr})"
-  | Expr.mdata _ _ => pure s!"({expr})"
+  | Expr.mdata _ e =>
+    let e ← _transformExpr e context
+    pure e
   | Expr.proj _ idx st =>
     let st ← _transformExpr st context
     pure s!"{st}.{idx}"
@@ -266,14 +268,14 @@ def transformExpr (name : Name) : MetaM String := do
         let ctorName := _validName ctor.name
         -- 去掉前缀部分
         let shortName := ctorName.splitOn "." |>.getLast? |>.getD ctorName
-        pure s!"| {shortName} : {ctorType}"
+        pure s!"--  | {shortName} : {ctorType}"
       | _ => throwError s!"Constructor {ctorName} not found"
     let ctorsStr := String.intercalate "\n  " constructors
     -- 根据 ctorsStr 是否为空决定是否添加 `where` 和构造器部分
     if ctorsStr.isEmpty then
-      pure s!"inductive {name} : {typeStr}"
+      pure s!"-- inductive {name} : {typeStr}"
     else
-      pure s!"inductive {name} : {typeStr} where\n  {ctorsStr}"
+      pure s!"-- inductive {name} : {typeStr} where\n{ctorsStr}"
   | some (ConstantInfo.opaqueInfo val) =>
     let name := _validName val.name
     let typeStr ← _transformExpr val.value []

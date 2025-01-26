@@ -1,5 +1,5 @@
-def Prop = Sort(0)
-def Imp = (a:Prop)=>(b:Prop)=>(a->b)
+def Prop := Sort(0)
+def Imp := (a:Prop)=>(b:Prop)=>(a->b)
 def Iff : Prop -> Prop -> Prop
 def Iff.intro : (a:Prop)->(b:Prop)->(a->b)->(b->a)->Iff a b
 def Iff.mp : (a:Prop)->(b:Prop)->Iff a b->a->b
@@ -20,12 +20,12 @@ thm Or.elim : (a:Prop)->(b:Prop)->(c:Prop)->Or a b->(a->c)->(b->c)->c
   (a : Prop) => (b : Prop) => (c : Prop) => (h1 : Or a b) => (h2 : a -> c) => (h3 : b -> c) => Or.rec a b (Or a b => c) h2 h3 h1  
 def False : Prop
 def False.rec : (a:False->Sort(u))->(b:False)->(a b)
-def False.elim = (a:Sort(u))=>(b:False)=>False.rec (False=>a) b
+def False.elim := (a:Sort(u))=>(b:False)=>False.rec (False=>a) b
 def True : Prop
 def True.intro : True
 def True.rec : (a:True->Sort(u))->(a True.intro)->(c:True)->a c
-def Not = (a:Prop)=>(a->False) 
-def id = Sort(u)=>(a:#0)=>a
+def Not := (a:Prop)=>(a->False) 
+def id := Sort(u)=>(a:#0)=>a
 thm absurd : (a: Prop) -> (b: Sort(u)) -> (h1: a) -> (h2: Not a) -> b
   (a: Prop) => (b: Sort(u)) => (h1 : a) => (h2 : Not a) => False.elim b 
   (a : Prop) => (b : Sort(u)) => (h1 : a) => (h2 : Not a) => h2 h1
@@ -88,7 +88,7 @@ thm Or.comm : (a : Prop) -> (b : Prop) -> Iff (Or a b) (Or b a)
   (a : Prop) => (b : Prop) => Iff.intro (Or a b) (Or b a)
   (a : Prop) => (b : Prop) => (Or a b -> Or b a) => Or.symm b a
   (a : Prop) => (b : Prop) => Or.symm a b
-def Forall = (a:Sort(u))=>(b:a->Prop)=>((c:a)->b c)
+def Forall := (a:Sort(u))=>(b:a->Prop)=>((c:a)->b c)
 def Exists : (a:Sort(u))->(a->Prop)->Prop
 def Exists.intro : (a:Sort(u))->(h:a->Prop)->(x:a)->h x->Exists a h
 def Exists.rec : (a:Sort(u))->(motive:a->Prop)->(h1:Exists a motive->Prop)->((x:a)->(h2:motive x)-> h1 (Exists.intro a motive x h2))->(h3:Exists a motive)->h1 h3
@@ -191,7 +191,7 @@ thm not_true : Iff (Not True) False
   not_not_intro True True.intro
 thm not_false_iff : Iff (Not False) True 
   iff_true_intro (Not False) not_false
-def Ne = (a:Sort(u))=>(x:a)=>(y:a)=>Not (Eq a x y)
+def Ne := (a:Sort(u))=>(x:a)=>(y:a)=>Not (Eq a x y)
 thm new_of_not_iff : (a:Prop)->(b:Prop)->Not (Iff a b)->Ne Prop a b
   (a : Prop) => (b : Prop) => mt (Eq Prop a b) (Iff a b)
   Iff.of_eq

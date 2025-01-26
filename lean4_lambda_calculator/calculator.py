@@ -14,7 +14,7 @@ import logging
 import inspect
 
 # 全局日志开关
-LOGGING_ENABLED = False
+LOGGING_ENABLED = True
 
 # 根据日志开关来动态设置日志级别
 if LOGGING_ENABLED:

@@ -162,7 +162,7 @@ class Shell:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Lean4 Shell")
-    parser.add_argument("--history", type=str, default="./script.txt", help="Path to the history file")
+    parser.add_argument("--history", type=str, default="./history.txt", help="Path to the history file")
     args = parser.parse_args()
 
     shell = Shell(history_file=args.history)
