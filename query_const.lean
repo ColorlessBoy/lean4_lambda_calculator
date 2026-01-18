@@ -4,6 +4,9 @@ namespace Flow
 universe u v w u_1
 #print decide_ite
 #print decide_implies
+#print Eq
+#print Not
+#print And
 -- inductive HEq : {α : Sort u} -> α -> {β : Sort u} -> β -> Prop where
 --  | refl : {α : Sort u} -> (a : α) -> @HEq α a α a
 -- inductive Eq : {α : Sort u_1} -> α -> α -> Prop where
@@ -39,10 +42,19 @@ def Not : Prop -> Prop :=
 def Function.comp : {α : Sort u} -> {β : Sort v} -> {δ : Sort w} -> (β -> δ) -> (α -> β) -> α -> δ :=
   fun {α : Sort u} => fun {β : Sort v} => fun {δ : Sort w} => fun (f : β -> δ) => fun (g : α -> β) => fun (x : α) => f (g x)
 -- ctor Or.inl : {a : Prop} -> {b : Prop} -> a -> @Or a b
+#print not_not_em
 theorem not_not_em : (a : Prop) -> @Not (@Not (@Or a (@Not a))) :=
   fun (a : Prop) => fun (h : @Not (@Or a (@Not a))) => h (@Or.inr a (@Not a) (@Function.comp a (@Or a (@Not a)) False h (@Or.inl a (@Not a))))
 -- inductive And : Prop -> Prop -> Prop where
 --  | intro : {a : Prop} -> {b : Prop} -> a -> b -> @And a b
+set_option pp.all true
+#print Or.rec
+#print And.left
+#print Iff.of_eq
+#print Iff.symm
+#print not_not_em
+#print Classical.em
+
 theorem Iff.refl : (a : Prop) -> @Iff a a :=
   fun (a : Prop) => @Iff.intro a a (fun (h : a) => h) (fun (h : a) => h)
 theorem Iff.rfl : {a : Prop} -> @Iff a a :=
@@ -165,6 +177,7 @@ theorem or_self_iff : {a : Prop} -> @Iff (@Or a a) a :=
   fun {a : Prop} => @Eq.rec Prop a (fun (x : Prop) => fun (_ : @Eq Prop a x) => @Iff x a) (@Iff.rfl a) (@Or a a) (@Eq.symm Prop (@Or a a) a (@or_self a))
 def Or.elim.match_1 : {a : Prop} -> {b : Prop} -> (motive : @Or a b -> Prop) -> (h : @Or a b) -> ((h1 : a) -> motive (@Or.inl a b h1)) -> ((h1 : b) -> motive (@Or.inr a b h1)) -> motive h :=
   fun {a : Prop} => fun {b : Prop} => fun (motive : @Or a b -> Prop) => fun (h : @Or a b) => fun (h_1 : (h1 : a) -> motive (@Or.inl a b h1)) => fun (h_2 : (h1 : b) -> motive (@Or.inr a b h1)) => @Or.casesOn a b (fun (x : @Or a b) => motive x) h (fun (h1 : a) => h_1 h1) (fun (h1 : b) => h_2 h1)
+#check Or.elim
 theorem Or.elim : {a : Prop} -> {b : Prop} -> {c : Prop} -> @Or a b -> (a -> c) -> (b -> c) -> c :=
   fun {a : Prop} => fun {b : Prop} => fun {c : Prop} => fun (h : @Or a b) => fun (left : a -> c) => fun (right : b -> c) => @Or.elim.match_1 a b (fun (_ : @Or a b) => c) h (fun (h1 : a) => left h1) (fun (h1 : b) => right h1)
 theorem not_or_intro : {a : Prop} -> {b : Prop} -> @Not a -> @Not b -> @Not (@Or a b) :=
@@ -388,6 +401,7 @@ theorem ite_false_same : {p : Prop} -> {q : Prop} -> (inst : @Decidable p) -> @I
   fun {p : Prop} => fun {q : Prop} => fun (inst : @Decidable p) => @ite_else_self p q inst
 theorem forall_imp : {α : Sort u_1} -> {p : α -> Prop} -> {q : α -> Prop} -> ((a : α) -> p a -> q a) -> ((a : α) -> p a) -> (a1 : α) -> q a1 :=
   fun {α : Sort u_1} => fun {p : α -> Prop} => fun {q : α -> Prop} => fun (h : (a : α) -> p a -> q a) => fun (h' : (a : α) -> p a) => fun (a : α) => h a (h' a)
+#print Exists.intro
 -- inductive Exists : {α : Sort u} -> (α -> Prop) -> Prop where
 --  | intro : {α : Sort u} -> {p : α -> Prop} -> (w : α) -> p w -> @Exists α p
 -- ctor Exists.intro : {α : Sort u} -> {p : α -> Prop} -> (w : α) -> p w -> @Exists α p
@@ -396,6 +410,7 @@ theorem forall_imp : {α : Sort u_1} -> {p : α -> Prop} -> {q : α -> Prop} -> 
 --  fun {α : Sort u} => fun {p : α -> Prop} => fun {motive : @Exists α p -> Prop} => fun (t : @Exists α p) => fun (intro : (w : α) -> (h : p w) -> motive (@Exists.intro α p w h)) => @Exists.rec α p motive (fun (w : α) => fun (h : p w) => intro w h) t
 def forall_exists_index.match_1 : {α : Sort u_1} -> {p : α -> Prop} -> (motive : @Exists α (fun (x : α) => p x) -> Prop) -> (x : @Exists α (fun (x : α) => p x)) -> ((x1 : α) -> (hpx : p x1) -> motive (@Exists.intro α (fun (x2 : α) => p x2) x1 hpx)) -> motive x :=
   fun {α : Sort u_1} => fun {p : α -> Prop} => fun (motive : @Exists α (fun (x : α) => p x) -> Prop) => fun (x : @Exists α (fun (x : α) => p x)) => fun (h_1 : (x1 : α) -> (hpx : p x1) -> motive (@Exists.intro α (fun (x2 : α) => p x2) x1 hpx)) => @Exists.casesOn α (fun (x1 : α) => p x1) (fun (x1 : @Exists α (fun (x1 : α) => p x1)) => motive x1) x (fun (w : α) => fun (h : p w) => h_1 w h)
+#print Exists.imp
 theorem Exists.imp : {α : Sort u_1} -> {p : α -> Prop} -> {q : α -> Prop} -> ((a : α) -> p a -> q a) -> @Exists α (fun (a : α) => p a) -> @Exists α (fun (a1 : α) => q a1) :=
   fun {α : Sort u_1} => fun {p : α -> Prop} => fun {q : α -> Prop} => fun (h : (a : α) -> p a -> q a) => fun (x : @Exists α (fun (a : α) => p a)) => @forall_exists_index.match_1 α p (fun (_ : @Exists α (fun (a : α) => p a)) => @Exists α (fun (a : α) => q a)) x (fun (a : α) => fun (hp : p a) => @Exists.intro α (fun (a1 : α) => q a1) a (h a hp))
 theorem Exists.imp' : {α : Sort u_2} -> {p : α -> Prop} -> {β : Sort u_1} -> {q : β -> Prop} -> (f : α -> β) -> ((a : α) -> p a -> q (f a)) -> @Exists α (fun (a : α) => p a) -> @Exists β (fun (b : β) => q b) :=
