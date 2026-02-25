@@ -1,199 +1,267 @@
-from sympy import symbols, Eq, solve, Max, simplify, satisfiable, sympify, Piecewise, Integer, Expr as SymExpr
-import re
-
+import math
+from functools import cmp_to_key
 
 class Level:
-    def __init__(self, level: str | int | SymExpr) -> None:
-        if isinstance(level, str):
-            try:
-                int_level = int(level)  # 尝试将level转换为整数
-                assert int_level >= 0, f"Invalid level {level}, which is small than 0."
-                self.symbol = Integer(int_level)
-            except ValueError:
-                # 如果转换失败，说明level不是有效的整数
-                self.symbol = symbols(level, integer=True, nonnegative=True)
-        elif isinstance(level, int):
-            assert level >= 0, f"Invalid level number {level}, which is small than 0."
-            self.symbol = Integer(level)  # 将输入简化为 sympy 表达式
-        elif isinstance(level, SymExpr):
-            self.symbol = level
-        else:
-            raise TypeError("input arg level should be str, int")
+    def __init__(self, level: str | int) -> None:
+        raise NotImplementedError("Level is an abstract class, cannot be instantiated directly.")
+    
+    def __hash__(self) -> int:
+        return hash(repr(self))
+    
+    def is_constant(self) -> bool:
+        return not math.isinf(self.upper_bound()) and self.lower_bound() == self.upper_bound()
+    
+    def lower_bound(self) -> float:
+        return 0
+    
+    def upper_bound(self) -> float:
+        return math.inf
 
-    def __repr__(self) -> str:
-        return str(self.symbol)
-
-    def __eq__(self, other: object) -> bool:
-        if isinstance(other, Level):
-            # 构造方程 self.symbol == other.symbol
-            equation = Eq(self.symbol, other.symbol)
-            rst = satisfiable(equation)
-            return bool(rst)
-        return False
-
-    def get_variables(self) -> set[str]:
-        """获取表达式中的所有变量名字符串"""
-        return {str(symbol) for symbol in self.symbol.free_symbols}
-
-    def match(self, level):
-        if not isinstance(level, Level):
-            return False, None
-        if simplify(self.symbol - level.symbol) == 0:
-            return True, None
-        eq = Eq(self.symbol, level.symbol)
-        solution = solve(eq)
-        # 如果有解，返回 True 和 solution 
-        if solution:
-            return True, solution
-        return False, None
-
-LevelType = str | int | Level
-
-class SuccLevel(Level):
-    def __init__(self, level: LevelType) -> None:
-        self.origin_level = level if isinstance(level, Level) else Level(level)
-        self.symbol = simplify(self.origin_level.symbol + 1)
-
-    def __repr__(self) -> str:
-        super_str = super().__repr__()
-        if "Piecewise" in super_str:
-            return f"{self.origin_level}+1"
-        return super_str
-
-class MaxLevel(Level):
-    def __init__(self, left: LevelType, right: LevelType) -> None:
-        self.left = left if isinstance(left, Level) else Level(left)
-        self.right = right if isinstance(right, Level) else Level(right) 
-        self.symbol = simplify(Max(self.left.symbol, self.right.symbol))
+class ParamLevel(Level):
+    def __init__(self, name: str) -> None:
+        self.name = name
     
     def __repr__(self) -> str:
-        super_str = super().__repr__()
-        if "Piecewise" in super_str:
-            return f"Max({self.left},{self.right})"
-        return super_str
+        return self.name
+
+class MVarLevel(Level):
+    def __init__(self, name: str) -> None:
+        self.name = name
+    
+    def __repr__(self) -> str:
+        return f"?{self.name}"
+
+class NatLevel(Level):
+    def __init__(self, value: int) -> None:
+        self.value = value
+    
+    def __repr__(self) -> str:
+        return str(self.value)
+    
+    def is_constant(self) -> bool:
+        return True
+    
+    def lower_bound(self) -> float:
+        return self.value
+    
+    def upper_bound(self) -> float:
+        return self.value
+
+class SuccLevel(Level):
+    def __init__(self, level: Level, offset: int=1) -> None:
+        assert offset > 0, "Depth must be a positive integer."
+        self.level = level
+        self.offset = offset
+
+    def __repr__(self) -> str:
+        return f"{self.level}+{self.offset}"
+    
+    def lower_bound(self) -> float:
+        return self.level.lower_bound() + self.offset
+
+    def upper_bound(self) -> float:
+        return self.level.upper_bound() + self.offset
+
+class MaxLevel(Level):
+    def __init__(self, levels: list[Level]) -> None:
+        self.levels = levels
+
+    def __repr__(self) -> str:
+        return "Max(" + ", ".join(repr(level) for level in self.levels) + ")"
+    
+    def lower_bound(self) -> float:
+        return max(level.lower_bound() for level in self.levels)
+    
+    def upper_bound(self) -> float:
+        return max(level.upper_bound() for level in self.levels)
+    
 
 class IMaxLevel(Level):
     def __init__(self, left: Level, right: Level) -> None:
-        self.left = left if isinstance(left, Level) else Level(left)
-        self.right = right if isinstance(right, Level) else Level(right) 
-        self.symbol = simplify(Piecewise(
-            (0, Eq(self.right.symbol, 0)), # 如果 b = 0, 则返回 0
-            (Max(self.left.symbol, self.right.symbol), True),  # 如果 b ≠ 0，返回 max(succ(a), b)
-        ))
-    
+        self.left = left
+        self.right = right
+
     def __repr__(self) -> str:
-        super_str = super().__repr__()
-        if "Piecewise" in super_str:
-            return f"IMax({self.left},{self.right})"
-        return super_str
+        return f"IMax({self.left}, {self.right})"
+    
+    def lower_bound(self) -> float:
+        if self.right.lower_bound() == 0:
+            return 0
+        return max(self.left.lower_bound(), self.right.lower_bound())
+    def upper_bound(self) -> float:
+        if self.right.upper_bound() == 0:
+            return 0
+        return max(self.left.upper_bound(), self.right.upper_bound())
 
-def level_subs_symbols(level: Level, used_free_symbols: set[str], renamed_symbols: dict[str, str]) -> Level:
-    rst_symbol = level.symbol
-    for symbol in rst_symbol.free_symbols:
-        s_symbol = str(symbol)
-        if s_symbol not in used_free_symbols:
+# 相等的充分条件：is_sufficient_equal 为 True，则 level1 等于 level2；但是 level1 等于 level2，is_sufficient_equal 不一定为 True
+def is_sufficient_equal(level1: Level, level2: Level) -> bool:
+    if level1 is level2:
+        return True
+    if level1.lower_bound() != level2.lower_bound() or level1.upper_bound() != level2.upper_bound():
+        return False
+    if isinstance(level1, ParamLevel):
+        if isinstance(level2, ParamLevel):
+            return level1.name == level2.name
+    if isinstance(level1, MVarLevel):
+        if isinstance(level2, MVarLevel):
+            return level1.name == level2.name
+    if isinstance(level1, NatLevel):
+        return True # 开头已经判断过了上下界相等，所以 level1.value == level2.value
+    if isinstance(level1, SuccLevel):
+        if isinstance(level2, SuccLevel):
+            if level1.offset == level2.offset:
+                return is_sufficient_equal(level1.level, level2.level)
+            elif level1.offset > level2.offset:
+                return is_sufficient_equal(SuccLevel(level1.level, level1.offset - level2.offset), level2.level)
+            else:
+                return is_sufficient_equal(level1.level, SuccLevel(level2.level, level2.offset - level1.offset))
+    if isinstance(level1, MaxLevel):
+        if isinstance(level2, MaxLevel):
+            if len(level1.levels) != len(level2.levels):
+                return False
+            for i in range(len(level1.levels)):
+                if not is_sufficient_equal(level1.levels[i], level2.levels[i]):
+                    return False
+            return True
+    if isinstance(level1, IMaxLevel):
+        if isinstance(level2, IMaxLevel):
+            return is_sufficient_equal(level1.left, level2.left) and is_sufficient_equal(level1.right, level2.right)
+    return False # 其他情况默认不相等
+
+def mk_normalize_succ_level(norm_level: Level, offset: int) -> Level:
+    if norm_level.is_constant():
+        return NatLevel(int(norm_level.lower_bound())+offset)
+    if isinstance(norm_level, SuccLevel):
+        return SuccLevel(norm_level.level, norm_level.offset+offset)
+    if isinstance(norm_level, MaxLevel):
+        return mk_normalize_max_level([mk_normalize_succ_level(level, offset) for level in norm_level.levels])
+    return SuccLevel(norm_level, offset)
+
+def mk_normalize_imax_level(norm_left: Level, norm_right: Level) -> Level:
+    if norm_right.is_constant() and norm_right.lower_bound() == 0:
+        return NatLevel(0)
+    if norm_left.is_constant() and norm_left.lower_bound() <= 1:
+        return norm_right
+    if is_sufficient_equal(norm_left, norm_right):
+        return norm_left
+    if norm_right.lower_bound() > 0:
+        return mk_normalize_max_level([norm_left, norm_right])
+    return IMaxLevel(norm_left, norm_right)
+
+def type_code(level: Level) -> int:
+    if isinstance(level, NatLevel):
+        return 1
+    if isinstance(level, SuccLevel):
+        return 2
+    if isinstance(level, MaxLevel):
+        return 3
+    if isinstance(level, IMaxLevel):
+        return 4
+    if isinstance(level, ParamLevel):
+        return 5
+    if isinstance(level, MVarLevel):
+        return 6
+    raise Exception("Unsupported level type")
+
+def is_norm_lt(norm_level1: Level, norm_level2: Level) -> int:
+    if is_sufficient_equal(norm_level1, norm_level2):
+        return 0
+    if norm_level1.lower_bound() != norm_level2.lower_bound():
+        return int(norm_level1.lower_bound() - norm_level2.lower_bound())
+    elif norm_level1.upper_bound() != norm_level2.upper_bound():
+        return int(norm_level1.upper_bound() - norm_level2.upper_bound())
+    if type_code(norm_level1) != type_code(norm_level2):
+        return int(type_code(norm_level1) - type_code(norm_level2))
+    if isinstance(norm_level1, ParamLevel) or isinstance(norm_level1, MVarLevel):
+        assert isinstance(norm_level2, ParamLevel) or isinstance(norm_level2, MVarLevel), "Out of bound 3"
+        return -1 if norm_level1.name < norm_level2.name else (1 if norm_level1.name > norm_level2.name else 0)
+    if isinstance(norm_level1, SuccLevel):
+        assert isinstance(norm_level2, SuccLevel), "Out of bound 4"
+        if norm_level1.offset < norm_level2.offset:
+            return is_norm_lt(norm_level1.level, SuccLevel(norm_level2.level, norm_level2.offset - norm_level1.offset))
+        elif norm_level1.offset > norm_level2.offset:
+            return is_norm_lt(SuccLevel(norm_level1.level, norm_level1.offset - norm_level2.offset), norm_level2.level)
+        return is_norm_lt(norm_level1.level, norm_level2.level)
+    elif isinstance(norm_level1, IMaxLevel):
+        assert isinstance(norm_level2, IMaxLevel), "Out of bound 5"
+        return is_norm_lt(norm_level1.left, norm_level2.left) or is_norm_lt(norm_level1.right, norm_level2.right)
+    elif isinstance(norm_level1, MaxLevel):
+        assert isinstance(norm_level2, MaxLevel), "Out of bound 6"
+        for i in range(min(len(norm_level1.levels), len(norm_level2.levels))):
+            if is_norm_lt(norm_level1.levels[i], norm_level2.levels[i]):
+                return True
+        return len(norm_level1.levels) < len(norm_level2.levels)
+    raise Exception("Unsupported level type")
+
+def mk_normalize_max_level(norm_levels: list[Level]) -> Level:
+    if len(norm_levels) == 1:
+        return norm_levels[0]
+    args: list[Level] = []
+    max_lower_bound = max([level.lower_bound() for level in norm_levels])
+    for level in norm_levels:
+        # 最终的表达式 upper_bound 一定大于 lower_bound，所以不需要考虑小于等于 max_lower_bound 的子项
+        if level.upper_bound() <= max_lower_bound:
             continue
-        if s_symbol in renamed_symbols:
-            new_name = renamed_symbols[s_symbol]
-        else:
-            new_name = _get_new_name(used_free_symbols, set(renamed_symbols.values()))
-            renamed_symbols[s_symbol] = new_name
-        new_symbol = symbols(new_name, integer=True, nonnegative=True)
-        rst_symbol = rst_symbol.subs(symbol, new_symbol)
-    return Level(rst_symbol) 
+        if isinstance(level, MaxLevel):
+            for arg in level.levels:
+                if len(args) == 0 or any(not is_sufficient_equal(arg, existing_arg) for existing_arg in args):
+                    args.append(arg)
+        elif len(args) == 0 or any(not is_sufficient_equal(level, existing_arg) for existing_arg in args):
+            args.append(level)
+    if len(args) == 1:
+        return args[0]
+    # 缺少一个排序
+    sorted_args = sorted(args, key=cmp_to_key(lambda a, b: is_norm_lt(a, b)))
+    return MaxLevel(sorted_args)
 
-def _get_new_name(used_names: set[str], used_new_names: set[str]) -> str:
-    index = 0
-    while True:
-        name = f"u{index}"
-        if name not in used_names:
-            return name
-        index += 1
-
-def is_solvable(equations_str: list[str]) -> bool:
-    """
-    检查一个字符串列表形式的方程组是否有解。
-
-    参数:
-        equations_str (list[str]): 方程组的字符串列表，例如 ["x + y = 10", "y - z = 2"]。
-    
-    返回:
-        bool: 如果方程组有解，返回 True；否则返回 False。
-    """
-    if not equations_str:
-        return True  # 空方程组默认有解
-
-    # 第一次解析，收集自由符号
-    parsed_equations = []
-    all_symbols = set()
-    
-    for eq_str in equations_str:
-        # 暂时解析字符串
-        if "=" in eq_str:
-            rep_eq_str = eq_str.replace("=", "-(") + ")"
-        else:
-            rep_eq_str = eq_str
-        parsed_eq = sympify(rep_eq_str)  # 转换为表达式格式
-        parsed_equations.append(parsed_eq)
-        all_symbols.update(parsed_eq.free_symbols)
-
-    # 创建统一的符号上下文
-    symbol_context = {str(sym): symbols(str(sym)) for sym in all_symbols}
-
-    # 使用统一的符号上下文重新解析方程组
-    equations = [
-        Eq(sympify(eq_str.split("=")[0], locals=symbol_context), 
-           sympify(eq_str.split("=")[1], locals=symbol_context))
-        for eq_str in equations_str
-    ]
-
-    # 检查是否有解
-    logical_expression = Eq(0, 0)
-    for eq in equations:
-        logical_expression = logical_expression & eq
-
-    return bool(satisfiable(logical_expression))
-
-def parse_level(code: str) -> Level:
-    tokens = _tokenize(code)
-    return _parse_level(tokens)
-
-def _parse_level(tokens: list[str]) -> Level:
-    """解析 Level 对象"""
-    token = tokens.pop(0)
-    if token.isdigit():
-        return Level(int(token))
-    elif token == "Max":
-        assert tokens[0] == '(', "Max does not followed by `(`"
-        tokens.pop(0)
-        left = _parse_level(tokens)
-        assert tokens[0] == ',', "need a comma `,`"
-        tokens.pop(0)
-        right = _parse_level(tokens)
-        assert tokens[0] == ')', "Max does not ended with `)`"
-        tokens.pop(0)
-        return MaxLevel(left, right)
-    elif token == "IMax":
-        assert tokens[0] == '(', "Max does not followed by `(`"
-        tokens.pop(0)
-        left = _parse_level(tokens)
-        assert tokens[0] == ',', "need a comma `,`"
-        tokens.pop(0)
-        right = _parse_level(tokens)
-        assert tokens[0] == ')', "Max does not ended with `)`"
-        tokens.pop(0)
-        return IMaxLevel(left, right)
+def normalize_level(level: Level) -> Level:
+    if (level.is_constant()):
+        return NatLevel(int(level.lower_bound()))
+    if isinstance(level, NatLevel) or isinstance(level, ParamLevel) or isinstance(level, MVarLevel):
+        return level
+    if isinstance(level, SuccLevel):
+        level, offset = level.level, level.offset
+        while isinstance(level, SuccLevel):
+            level, offset = level.level, offset + level.offset
+        return mk_normalize_succ_level(normalize_level(level), offset)
+    if isinstance(level, IMaxLevel):
+        left = normalize_level(level.left)
+        right = normalize_level(level.right)
+        return mk_normalize_imax_level(left, right)
+    elif isinstance(level, MaxLevel):
+        return mk_normalize_max_level([normalize_level(level) for level in level.levels])
     else:
-        if len(tokens) >= 2 and tokens[0] == "+" and tokens[1] == "1":
-            tokens.pop(0)
-            tokens.pop(0)
-            return SuccLevel(Level(token))
-        else:
-            return Level(token)
+        raise Exception("Unsupported level type")
 
-def _tokenize(expr: str) -> list[str]:
-    """将输入字符串拆分为标记列表"""
-    # 使用正则表达式匹配括号、标识符和数字
-    pattern = r"[()+]|[A-Za-z0-9_.\u00A0-\uFFFF]+|\S"
-    tokens = re.findall(pattern, expr)
-    return tokens
+def is_equivalent(level1: Level, level2: Level) -> bool:
+    if is_sufficient_equal(level1, level2):
+        return True
+    return is_sufficient_equal(normalize_level(level1), normalize_level(level2))
+
+def is_geq(level1: Level, level2: Level) -> bool:
+    return is_geq_core(normalize_level(level1), normalize_level(level2))
+
+def is_geq_core(level1: Level, level2: Level) -> bool:
+    if (is_sufficient_equal(level1, level2) or level1.lower_bound() >= level2.upper_bound()):
+        return True
+    if isinstance(level2, MaxLevel):
+        return all(is_geq_core(level1, arg) for arg in level2.levels)
+    if isinstance(level1, MaxLevel):
+        return any(is_geq_core(arg, level2) for arg in level1.levels)
+    if isinstance(level2, IMaxLevel):
+        # level2.left 和 level2.right 已经是 normalized
+        return is_geq_core(level1, level2.left) and is_geq_core(level1, level2.right)
+    if isinstance(level1, IMaxLevel):
+        # level1.right 已经是 normalized
+        return is_geq(level1.right, level2)
+    if isinstance(level1, SuccLevel):  
+        if not isinstance(level2, SuccLevel):
+            if is_sufficient_equal(level1.level, level2):
+                return level1.offset >= 0
+        else:
+            if level1.offset == level2.offset:
+                is_geq_core(level1.level, level2.level)
+            elif level1.offset > level2.offset:
+                return is_sufficient_equal(level1.level, level2.level)
+    return False
+    
