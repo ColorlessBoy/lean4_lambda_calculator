@@ -1,5 +1,5 @@
 import pytest
-from lean4_lambda_calculator.expr import Const, Sort, BoundVar, Arg, Forall, Lambda, App, print_expr_by_name, print_expr_by_index, expr_rename_args, Level
+from lean4_lambda_calculator.expr import Const, Sort, BoundVar, Param, Forall, Lambda, App, print_expr_by_name, print_expr_by_index, expr_rename_args, Level
 
 def test_sort():
     expr = Sort(0)
@@ -20,7 +20,7 @@ def test_bound_var():
     assert repr(expr) == "#1"
 
 def test_arg():
-    expr = Arg(Const("Nat"), None)
+    expr = Param(Const("Nat"), None)
     assert expr.type == Const("Nat")
     assert expr.name is None
     assert expr.predicate == 100
@@ -28,14 +28,14 @@ def test_arg():
 
 def test_forall():
     expr = Forall(Const("Nat"), BoundVar(0))
-    assert isinstance(expr.var_type, Arg)
+    assert isinstance(expr.var_type, Param)
     assert expr.body == BoundVar(0)
     assert expr.predicate == 1
     assert repr(expr) == "Nat -> #0"
 
 def test_lambda():
     expr = Lambda(Const("Nat"), BoundVar(0))
-    assert isinstance(expr.var_type, Arg)
+    assert isinstance(expr.var_type, Param)
     assert expr.body == BoundVar(0)
     assert expr.predicate == 2
     assert repr(expr) == "Nat => #0"
@@ -52,7 +52,7 @@ def test_app():
 def test_print_expr_by_name():
     Prop = Const("Prop")
     Iff = Const("Iff")
-    expr = Forall(Arg(Prop, "a"), Forall(Arg(Prop, "b"), Forall(Forall(BoundVar(1), BoundVar(1)),
+    expr = Forall(Param(Prop, "a"), Forall(Param(Prop, "b"), Forall(Forall(BoundVar(1), BoundVar(1)),
         Forall(Forall(BoundVar(1), BoundVar(3)), App(App(Iff, BoundVar(3)), BoundVar(2)))
     )))
     result = print_expr_by_name(expr)
@@ -61,7 +61,7 @@ def test_print_expr_by_name():
 def test_print_expr_by_index():
     Prop = Const("Prop")
     Iff = Const("Iff")
-    expr = Forall(Arg(Prop, "a"), Forall(Arg(Prop, "b"), Forall(Forall(BoundVar(1), BoundVar(1)),
+    expr = Forall(Param(Prop, "a"), Forall(Param(Prop, "b"), Forall(Forall(BoundVar(1), BoundVar(1)),
         Forall(Forall(BoundVar(1), BoundVar(3)), App(App(Iff, BoundVar(3)), BoundVar(2)))
     )))
     result = print_expr_by_index(expr)
@@ -82,15 +82,15 @@ def test_sort_with_level():
 
 def test_nested_lambda():
     expr = Lambda(Const("Nat"), Lambda(Const("Nat"), BoundVar(1)))
-    assert isinstance(expr.var_type, Arg)
-    assert expr.body.var_type == Arg(Const("Nat"), None)
+    assert isinstance(expr.var_type, Param)
+    assert expr.body.var_type == Param(Const("Nat"), None)
     assert expr.body.body == BoundVar(1)
     assert repr(expr) == "Nat => Nat => #1"
 
 def test_nested_forall():
     expr = Forall(Const("Nat"), Forall(Const("Nat"), BoundVar(1)))
-    assert isinstance(expr.var_type, Arg)
-    assert expr.body.var_type == Arg(Const("Nat"), None)
+    assert isinstance(expr.var_type, Param)
+    assert expr.body.var_type == Param(Const("Nat"), None)
     assert expr.body.body == BoundVar(1)
     assert repr(expr) == "Nat -> Nat -> #1"
 

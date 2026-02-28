@@ -6,7 +6,7 @@ License: MIT
 """
 
 from lean4_lambda_calculator.level import SuccLevel, is_solvable, IMaxLevel
-from lean4_lambda_calculator.expr import Expr, BoundVar, Const, Lambda, Forall, App, Sort, Arg, expr_rename_level, expr_todef, get_sort_eq_conditions, print_expr_by_name, print_expr_by_index
+from lean4_lambda_calculator.expr import Expr, BoundVar, Const, Lambda, Forall, App, Sort, Param, expr_rename_level, expr_todef, get_sort_eq_conditions, print_expr_by_name, print_expr_by_index
 from lean4_lambda_calculator.Context import Context
 
 import time
@@ -60,13 +60,13 @@ def hash_expr(expr: Expr) -> str:
 # 求解表达式的类型
 # 返回化简后的表达式和类型
 @log_execution_time
-def calc(expr: Expr, context: Context[Arg] = None, type_pool: dict[str, Expr] = None, def_pool: dict[str, Expr] = None, used_free_symbols: set[str] = None, type_no_check: bool = False) -> tuple[Expr, Expr]:
-    if not isinstance(expr, Arg):
+def calc(expr: Expr, context: Context[Param] = None, type_pool: dict[str, Expr] = None, def_pool: dict[str, Expr] = None, used_free_symbols: set[str] = None, type_no_check: bool = False) -> tuple[Expr, Expr]:
+    if not isinstance(expr, Param):
         expr_hash = hash_expr(expr)
         if expr_hash in calc_cache:
             return calc_cache[expr_hash]
     if context is None:
-        context = Context[Arg]()
+        context = Context[Param]()
     if type_pool is None:
         type_pool = {}
     if def_pool is None:
@@ -86,9 +86,9 @@ def calc(expr: Expr, context: Context[Arg] = None, type_pool: dict[str, Expr] = 
             used_free_symbols.update(new_used_free_symbols)
             return definition, expr_type
         rst = (expr, expr_type)
-    elif isinstance(expr, Arg):
+    elif isinstance(expr, Param):
         arg_type, arg_type_type = calc(expr.type, context, type_pool, def_pool, used_free_symbols, type_no_check=type_no_check)
-        rst = (Arg(arg_type, expr.name), arg_type_type)
+        rst = (Param(arg_type, expr.name), arg_type_type)
     elif isinstance(expr, BoundVar):
         assert expr.index < len(
             context
@@ -96,9 +96,9 @@ def calc(expr: Expr, context: Context[Arg] = None, type_pool: dict[str, Expr] = 
         expr_type = shift_expr(context[expr.index].type, offset=0, step=expr.index+1)
         rst = (expr, expr_type)
     elif isinstance(expr, Forall):
-        assert isinstance(expr.var_type, Arg), f"Type of variable in Forall should be Arg, but got {expr.var_type}"
+        assert isinstance(expr.var_type, Param), f"Type of variable in Forall should be Arg, but got {expr.var_type}"
         var_type, var_type_type = calc(expr.var_type, context, type_pool, def_pool, used_free_symbols, type_no_check=type_no_check)
-        assert isinstance(var_type, Arg), f"Type of variable in Forall should be Arg, but got {var_type}"
+        assert isinstance(var_type, Param), f"Type of variable in Forall should be Arg, but got {var_type}"
         context.push(var_type)
         new_body, body_type = calc(
             expr.body, context, type_pool, def_pool, used_free_symbols, type_no_check=type_no_check
@@ -110,9 +110,9 @@ def calc(expr: Expr, context: Context[Arg] = None, type_pool: dict[str, Expr] = 
         context.pop()
         rst = (return_expr, return_type)
     elif isinstance(expr, Lambda):
-        assert isinstance(expr.var_type, Arg), f"Type of variable in Lambda should be Arg, but got {expr.var_type}"
+        assert isinstance(expr.var_type, Param), f"Type of variable in Lambda should be Arg, but got {expr.var_type}"
         var_type, _ = calc(expr.var_type, context, type_pool, def_pool, used_free_symbols, type_no_check=type_no_check)
-        assert isinstance(var_type, Arg), f"Type of variable in Forall should be Arg, but got {var_type}"
+        assert isinstance(var_type, Param), f"Type of variable in Forall should be Arg, but got {var_type}"
         context.push(var_type)
         new_body, body_type = calc(
             expr.body, context, type_pool, def_pool, used_free_symbols, type_no_check=type_no_check
@@ -143,12 +143,12 @@ def calc(expr: Expr, context: Context[Arg] = None, type_pool: dict[str, Expr] = 
     else:
         raise ValueError("Unknown expr", expr)
     
-    if len(context) == 0 and not isinstance(expr, Arg):
+    if len(context) == 0 and not isinstance(expr, Param):
         calc_cache[expr_hash] = rst
     return rst
 
 @log_execution_time
-def DefEq(target: Expr, source: Expr, context: list[Arg], type_pool: dict[str, Expr], def_pool: dict[str, Expr], used_free_symbols: set[str]=None) -> bool:
+def DefEq(target: Expr, source: Expr, context: list[Param], type_pool: dict[str, Expr], def_pool: dict[str, Expr], used_free_symbols: set[str]=None) -> bool:
     if target == source:
         conditions = get_sort_eq_conditions(target, source)
         if is_solvable(conditions):
@@ -163,8 +163,8 @@ def shift_expr(expr: Expr, offset: int = 0, step: int = 1):
         return expr
     elif isinstance(expr, Const):
         return expr
-    elif isinstance(expr, Arg):
-        return Arg(shift_expr(expr.type, offset=offset, step=step), expr.name)
+    elif isinstance(expr, Param):
+        return Param(shift_expr(expr.type, offset=offset, step=step), expr.name)
     elif isinstance(expr, BoundVar):
         if expr.index >= offset:
             return BoundVar(expr.index + step)
@@ -190,8 +190,8 @@ def unshift_expr(expr: Expr, offset: int, head: Expr):
         return expr
     elif isinstance(expr, Const):
         return expr
-    elif isinstance(expr, Arg):
-        return Arg(unshift_expr(expr.type, offset=offset, head=head), expr.name)
+    elif isinstance(expr, Param):
+        return Param(unshift_expr(expr.type, offset=offset, head=head), expr.name)
     elif isinstance(expr, BoundVar):
         if expr.index >= offset:
             if expr.index == offset:
@@ -213,11 +213,11 @@ def unshift_expr(expr: Expr, offset: int, head: Expr):
     return expr
 
 @log_execution_time
-def proof_step(action: Expr, goal: Expr, diff_context: Context[Arg] = None, same_context: Context[Arg] = None, type_pool:dict[str,Expr]=None, def_pool:dict[str,Expr]=None) -> list[Expr] | None:
+def proof_step(action: Expr, goal: Expr, diff_context: Context[Param] = None, same_context: Context[Param] = None, type_pool:dict[str,Expr]=None, def_pool:dict[str,Expr]=None) -> list[Expr] | None:
     if diff_context is None:
-        diff_context = Context[Arg]()
+        diff_context = Context[Param]()
     if same_context is None:
-        same_context = Context[Arg]()
+        same_context = Context[Param]()
     if DefEq(action, goal, diff_context + same_context, type_pool, def_pool):
         goals: list[Expr] = []
         for arg in diff_context:

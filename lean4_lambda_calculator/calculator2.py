@@ -1,0 +1,188 @@
+from expr import Expr, Sort, Const, Forall, Sort0, Sort1, Lambda, Param, mk_normalize_forall, App, BoundVar
+from level import mk_normalize_succ_level, mk_normalize_imax_level, is_equivalent as is_equivalent_level
+
+class Calculator:
+    def __init__(self):
+        self.def_pool: dict[str, Expr] = {}
+        self.def_type_pool: dict[str, Expr] = {}
+    
+    def add_definition(self, label: str, type_expr: Expr, value_expr: Expr|None = None):
+        if label in self.def_type_pool:
+            raise ValueError(f"Definition already exists: {label}")
+        self.def_type_pool[label] = type_expr
+        if value_expr is not None:
+            self.def_pool[label] = value_expr
+    
+    def substitute(self, expr: Expr, args: list[Expr]) -> Expr:
+        if isinstance(expr, BoundVar):
+            if expr.index >= len(args):
+                raise ValueError(f"Bound variable index out of range: {expr.index}")
+            arg = args[-1 - expr.index]
+            if isinstance(arg, Param):
+                cnt = 0
+                for i in range(len(args)-1, expr.index-1, -1):
+                    if isinstance(args[i], Param):
+                        cnt += 1
+                return BoundVar(cnt)
+            return arg
+        elif isinstance(expr, App):
+            return App(self.substitute(expr.func, args), [self.substitute(a, args) for a in expr.args])
+        elif isinstance(expr, Lambda):
+            return Lambda([Param(self.substitute(v.type, args), v.name) for v in expr.params], self.substitute(expr.body, [BoundVar(i) for i in range(len(expr.params)-1, -1, -1)] + args))
+        elif isinstance(expr, Forall):
+            return Forall([Param(self.substitute(v.type, args), v.name) for v in expr.params], self.substitute(expr.body, [BoundVar(i) for i in range(len(expr.params)-1, -1, -1)] + args))
+        elif isinstance(expr, Param):
+            return Param(self.substitute(expr.type, args), expr.name)
+        return expr
+    
+    def app_reduce(self, app: App, checking=False):
+        func, args = app.func, app.args
+        if isinstance(func, Const):
+            if func.label in self.def_pool:
+                return self.app_reduce(App(self.def_pool[func.label], args))
+        if not isinstance(func, Lambda):
+            return app
+        return self.substitute(func, args)
+
+    def def_eq(self, expr1: Expr, expr2: Expr) -> bool:
+        if expr1 is expr2:
+            return True
+        if hash(expr1) == hash(expr2):
+            return True
+        if isinstance(expr1, Const):
+            if isinstance(expr2, Const) and expr1.label == expr2.label:
+                return True
+            if expr1.label in self.def_pool:
+                return self.def_eq(self.def_pool[expr1.label], expr2)
+            else:
+                return False # 只定义了类型
+        if isinstance(expr2, Const):
+            if expr2.label in self.def_pool:
+                return self.def_eq(expr1, self.def_pool[expr2.label])
+            else:
+                return False # 只定义了类型
+        if isinstance(expr1, Sort) and isinstance(expr2, Sort) and is_equivalent_level(expr1.level, expr2.level):
+            return True
+        return False
+    
+    def infer_type(self, norm_expr: Expr, outer_args: list[Expr]=[], outer_arg_types: list[Expr]=[], checking=False) -> Expr:
+        # 希望输入是一个已归一化的表达式
+        if isinstance(norm_expr, Sort):
+            return Sort(mk_normalize_succ_level(norm_expr.level, 1))
+        elif isinstance(norm_expr, Const):
+            if norm_expr.label not in self.def_type_pool:
+                raise ValueError(f"Undefined constant: {norm_expr.label}")
+            return self.def_type_pool[norm_expr.label]
+        elif isinstance(norm_expr, BoundVar):
+            if norm_expr.index >= len(outer_arg_types):
+                raise ValueError(f"Bound variable index out of range: {norm_expr.index}")
+            return outer_arg_types[-1 - norm_expr.index]
+        elif isinstance(norm_expr, Param):    
+            return norm_expr.type
+        elif isinstance(norm_expr, Forall):
+            new_args = [a for a in outer_args]
+            new_arg_types = [t for t in outer_arg_types]
+            for index, param in enumerate(norm_expr.params):
+                param_type = self.infer_type(param.type, new_args, new_arg_types, checking)
+                if isinstance(param_type, Const) and param_type.label in self.def_pool and isinstance(self.def_pool[param_type.label], Sort):
+                    param_type = self.def_pool[param_type.label]
+                if not isinstance(param_type, Sort):
+                    raise TypeError(f"Type of variable must be a Sort, got {param}:{param_type}")
+                if isinstance(param.type, Lambda):
+                    raise TypeError(f"Type of variable can not be Lambda, got {param}")
+                new_args.append(param)
+                new_arg_types.append(param_type)
+            body_type = self.infer_type(norm_expr.body, new_args, new_arg_types, checking)
+            if isinstance(body_type, Const) and body_type.label in self.def_pool and isinstance(self.def_pool[body_type.label], Sort):
+                body_type = self.def_pool[body_type.label]
+            if not isinstance(body_type, Sort):
+                raise TypeError(f"Body of Forall must be a Sort, got {norm_expr.body}:{body_type}")
+            if body_type.level.is_zero():
+                return Sort0 # xxx -> (xxx : Sort 0) : Sort 0
+            forall_type = body_type
+            for index in range(len(new_arg_types) - 1, len(outer_arg_types) - 1, -1):
+                arg_type = new_arg_types[index]
+                if isinstance(arg_type, Const) and arg_type.label in self.def_pool and isinstance(self.def_pool[arg_type.label], Sort):
+                    arg_type = self.def_pool[arg_type.label]
+                if not isinstance(arg_type, Sort):
+                    raise TypeError(f"Type of variable must be a Sort, got {index}-{arg_type}")
+                new_level = mk_normalize_imax_level(arg_type.level, forall_type.level)
+                if new_level.is_zero():
+                    return Sort0
+                forall_type = Sort(new_level)
+            return forall_type
+        elif isinstance(norm_expr, Lambda):
+            # 为 Lambda 表达式推断类型
+            new_args = [a for a in outer_args]
+            new_arg_types = [t for t in outer_arg_types]
+            for index, param in enumerate(norm_expr.params):
+                if isinstance(param.type, Lambda):
+                    raise TypeError(f"Type of variable can not be Lambda, got {param}")
+                new_args.append(param)
+                new_arg_types.append(param.type)
+            body_type = self.infer_type(norm_expr.body, new_args, new_arg_types, checking)
+            return mk_normalize_forall(norm_expr.params, body_type)
+        elif isinstance(norm_expr, App):
+            func_type = self.infer_type(norm_expr.func, outer_args, outer_arg_types, checking)
+            if not isinstance(func_type, Forall):
+                raise TypeError(f"Function in application must have a Forall type, got {norm_expr.func}:{func_type}")
+            if len(func_type.params) < len(norm_expr.args):
+                raise TypeError(f"Paramument length mismatch: expected {len(norm_expr.args)}, got {len(func_type.params)}")
+            # 进行类型替换，替换规则是将 func_type.body 中的 func_type.params[i] 替换为 norm_expr.args[i]
+            new_arg_types = [t for t in outer_arg_types]
+            new_args = [a for a in outer_args]
+            for index, (param, arg) in enumerate(zip(func_type.params, norm_expr.args)):
+                arg_type = self.infer_type(arg, outer_args, outer_arg_types, checking)
+                new_param_type = self.substitute(param.type, new_args)
+                if not self.def_eq(arg_type, new_param_type):
+                    raise TypeError(f"Paramument type mismatch: expected {param.type}, got {arg_type}")
+                new_arg_types.append(new_param_type)
+                if index < len(norm_expr.args):
+                    new_args.append(arg)
+                else: 
+                    new_args.append(param)
+            new_body = self.substitute(func_type.body, new_args)
+            if len(func_type.params) == len(norm_expr.args):
+                return new_body
+            elif len(func_type.params) < len(norm_expr.args):
+                return App(new_body, norm_expr.args[len(func_type.params):])
+            else:
+                return mk_normalize_forall(func_type.params[len(norm_expr.args):], new_body)
+        raise TypeError(f"Unknown expression type: {norm_expr}")
+
+if __name__ == "__main__":
+    calc = Calculator()
+    # 定义一个常量 a : Sort 0
+    calc.def_pool["Prop"] = Sort0
+    calc.def_type_pool["Prop"] = Sort1
+
+    # def Imp := (a:Prop)=>(b:Prop)=>(a->b)
+    imp = Lambda([Param(Const("Prop"), "x"), Param(Const("Prop"), "y")], Forall([Param(BoundVar(1))], BoundVar(1)))
+    imp_type = calc.infer_type(imp)
+    print(f"Imp : {imp_type} := {imp}")
+
+    iff_type = Forall([Param(Const("Prop")), Param(Const("Prop"))], Const("Prop"))
+    print(f"Iff : {iff_type}")
+    calc.add_definition("Iff", iff_type)
+
+    iff_intro = Forall([Param(Const("Prop"), "a"), Param(Const("Prop"), "b"), Param(Forall([Param(BoundVar(1))], BoundVar(1))), Param(Forall([Param(BoundVar(2))], BoundVar(4)))], App(Const("Iff"), [BoundVar(3), BoundVar(4)]))
+    print(f"Iff.intro : {iff_intro}")
+    calc.add_definition("Iff.intro", iff_intro)
+
+    iff_mp = Forall([Param(Const("Prop"), "a"), Param(Const("Prop"), "b"), Param(App(Const("Iff"), [BoundVar(2), BoundVar(1)])), Param(BoundVar(3))], BoundVar(3))
+    print(f"Iff.mp : {iff_mp}")
+    calc.add_definition("Iff.mp", iff_mp)
+
+    iff_mpr = Forall([Param(Const("Prop"), "a"), Param(Const("Prop"), "b"), Param(App(Const("Iff"), [BoundVar(2), BoundVar(1)])), Param(BoundVar(2))], BoundVar(4))
+    print(f"Iff.mpr : {iff_mpr}")
+    calc.add_definition("Iff.mpr", iff_mpr)
+
+    id = Lambda([Param(Const("Prop"), "a"), Param(BoundVar(0))], BoundVar(0))
+    id_type = calc.infer_type(id)
+    print(f"id : {id_type} := {id}")
+    calc.add_definition("id", id_type, id)
+
+    iff_refl = Lambda([Param(Const("Prop"), "a")], App(Const("Iff.intro"), [BoundVar(0), BoundVar(0), App(Const("id"), [BoundVar(0)]), App(Const("id"), [BoundVar(0)])]))
+    iff_refl_type = calc.infer_type(iff_refl)
+    print(f"Iff.refl : {iff_refl_type} := {iff_refl}")
+    calc.add_definition("Iff.refl", iff_refl_type, iff_refl)

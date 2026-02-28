@@ -1,5 +1,5 @@
 from lark import Lark, Transformer, UnexpectedInput
-from lean4_lambda_calculator.expr import BoundVar, Const, Lambda, Forall, App, Sort, Arg, print_expr_by_name, Expr, const_to_boundvar, set_boundvar_name
+from lean4_lambda_calculator.expr import BoundVar, Const, Lambda, Forall, App, Sort, Param, print_expr_by_name, Expr, const_to_boundvar, set_boundvar_name
 from lean4_lambda_calculator.level import SuccLevel, MaxLevel, IMaxLevel
 from lean4_lambda_calculator.calculator import calc
 
@@ -168,7 +168,7 @@ class ExprTransformer(Transformer):
         return Forall(arg, body)
 
     def arg(self, items):
-        return Arg(items[1], str(items[0]))
+        return Param(items[1], str(items[0]))
     
     def typedef(self, items):
         return TypeDef(items[0], items[1])
@@ -225,7 +225,7 @@ if __name__ == "__main__":
     # 解析 Unicode 表达式
     Prop = Sort(0)
     Iff = Const("Iff")
-    expr = Forall(Arg(Prop, "a"), Forall(Arg(Prop, "b"), Forall(Forall(BoundVar(1), BoundVar(1)),
+    expr = Forall(Param(Prop, "a"), Forall(Param(Prop, "b"), Forall(Forall(BoundVar(1), BoundVar(1)),
         Forall(Forall(BoundVar(1), BoundVar(3)), App(App(Iff, BoundVar(3)), BoundVar(2)))
     )))
     code = print_expr_by_name(expr)
