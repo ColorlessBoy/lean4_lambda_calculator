@@ -1,18 +1,22 @@
-from expr import Expr, Sort, Const, Forall, Sort0, Sort1, Lambda, Param, mk_normalize_forall, App, BoundVar
+from expr import Expr, Sort, Const, Forall, Sort0, Sort1, Lambda, Param, mk_normalize_forall, App, BoundVar, to_string
 from level import mk_normalize_succ_level, mk_normalize_imax_level, is_equivalent as is_equivalent_level
 
 class Calculator:
     def __init__(self):
         self.def_pool: dict[str, Expr] = {}
         self.def_type_pool: dict[str, Expr] = {}
+        self.proof_type_pool: dict[str, Expr] = {}
     
-    def add_definition(self, label: str, type_expr: Expr, value_expr: Expr|None = None):
+    # def_expr 会参与到 lambda reduction 中；
+    # proof_expr 不会参与到 lambda reduction 中，一个 theorem 被证明后，就可以当成公理直接使用
+    def add_definition(self, label: str, type_expr: Expr, def_expr: Expr|None = None, proof_expr: Expr|None = None):
         if label in self.def_type_pool:
             raise ValueError(f"Definition already exists: {label}")
         self.def_type_pool[label] = type_expr
-        if value_expr is not None:
-            self.def_pool[label] = value_expr
-    
+        if def_expr is not None:
+            self.def_pool[label] = def_expr
+        if proof_expr is not None:
+            self.proof_type_pool[label] = proof_expr
     def substitute(self, expr: Expr, args: list[Expr]) -> Expr:
         if isinstance(expr, BoundVar):
             if expr.index >= len(args):
@@ -63,6 +67,22 @@ class Calculator:
                 return False # 只定义了类型
         if isinstance(expr1, Sort) and isinstance(expr2, Sort) and is_equivalent_level(expr1.level, expr2.level):
             return True
+        if isinstance(expr1, BoundVar) and isinstance(expr2, BoundVar) and expr1.index == expr2.index:
+            return True
+        if isinstance(expr1, Forall) and isinstance(expr2, Forall):
+            if len(expr1.params) != len(expr2.params):
+                return False
+            for param1, param2 in zip(expr1.params, expr2.params):
+                if not self.def_eq(param1.type, param2.type):
+                    return False
+            return self.def_eq(expr1.body, expr2.body)
+        if isinstance(expr1, Lambda) and isinstance(expr2, Lambda):
+            if len(expr1.params) != len(expr2.params):
+                return False
+            for param1, param2 in zip(expr1.params, expr2.params):
+                if not self.def_eq(param1.type, param2.type):
+                    return False
+            return self.def_eq(expr1.body, expr2.body)
         return False
     
     def infer_type(self, norm_expr: Expr, outer_args: list[Expr]=[], outer_arg_types: list[Expr]=[], checking=False) -> Expr:
@@ -159,30 +179,93 @@ if __name__ == "__main__":
     # def Imp := (a:Prop)=>(b:Prop)=>(a->b)
     imp = Lambda([Param(Const("Prop"), "x"), Param(Const("Prop"), "y")], Forall([Param(BoundVar(1))], BoundVar(1)))
     imp_type = calc.infer_type(imp)
-    print(f"Imp : {imp_type} := {imp}")
+    print(f"Imp : {to_string(imp_type)} := {to_string(imp)}")
 
     iff_type = Forall([Param(Const("Prop")), Param(Const("Prop"))], Const("Prop"))
-    print(f"Iff : {iff_type}")
+    print(f"Iff : {to_string(iff_type)}")
     calc.add_definition("Iff", iff_type)
 
-    iff_intro = Forall([Param(Const("Prop"), "a"), Param(Const("Prop"), "b"), Param(Forall([Param(BoundVar(1))], BoundVar(1))), Param(Forall([Param(BoundVar(2))], BoundVar(4)))], App(Const("Iff"), [BoundVar(3), BoundVar(4)]))
-    print(f"Iff.intro : {iff_intro}")
+    iff_intro = Forall([Param(Const("Prop"), "a"), Param(Const("Prop"), "b"), Param(Forall([Param(BoundVar(1))], BoundVar(1))), Param(Forall([Param(BoundVar(2))], BoundVar(3)))], App(Const("Iff"), [BoundVar(3), BoundVar(2)]))
+    print(f"Iff.intro : {to_string(iff_intro)}")
     calc.add_definition("Iff.intro", iff_intro)
 
-    iff_mp = Forall([Param(Const("Prop"), "a"), Param(Const("Prop"), "b"), Param(App(Const("Iff"), [BoundVar(2), BoundVar(1)])), Param(BoundVar(3))], BoundVar(3))
-    print(f"Iff.mp : {iff_mp}")
+    iff_mp = Forall([Param(Const("Prop"), "a"), Param(Const("Prop"), "b"), Param(App(Const("Iff"), [BoundVar(1), BoundVar(0)])), Param(BoundVar(2))], BoundVar(2))
+    print(f"Iff.mp : {to_string(iff_mp)}")
     calc.add_definition("Iff.mp", iff_mp)
 
-    iff_mpr = Forall([Param(Const("Prop"), "a"), Param(Const("Prop"), "b"), Param(App(Const("Iff"), [BoundVar(2), BoundVar(1)])), Param(BoundVar(2))], BoundVar(4))
-    print(f"Iff.mpr : {iff_mpr}")
+    iff_mpr = Forall([Param(Const("Prop"), "a"), Param(Const("Prop"), "b"), Param(App(Const("Iff"), [BoundVar(1), BoundVar(0)])), Param(BoundVar(1))], BoundVar(3))
+    print(f"Iff.mpr : {to_string(iff_mpr)}")
     calc.add_definition("Iff.mpr", iff_mpr)
 
-    id = Lambda([Param(Const("Prop"), "a"), Param(BoundVar(0))], BoundVar(0))
+    id = Lambda([Param(Const("Prop"), "h"), Param(BoundVar(0), "a")], BoundVar(0))
     id_type = calc.infer_type(id)
-    print(f"id : {id_type} := {id}")
+    print(f"id : {to_string(id_type)} := {to_string(id)}")
     calc.add_definition("id", id_type, id)
 
     iff_refl = Lambda([Param(Const("Prop"), "a")], App(Const("Iff.intro"), [BoundVar(0), BoundVar(0), App(Const("id"), [BoundVar(0)]), App(Const("id"), [BoundVar(0)])]))
     iff_refl_type = calc.infer_type(iff_refl)
-    print(f"Iff.refl : {iff_refl_type} := {iff_refl}")
-    calc.add_definition("Iff.refl", iff_refl_type, iff_refl)
+    print(f"Iff.refl : {to_string(iff_refl_type)} := {to_string(iff_refl)}")
+    calc.add_definition("Iff.refl", iff_refl_type, proof_expr=iff_refl)
+
+    and_type = Forall([Param(Const("Prop"), "left"), Param(Const("Prop"), "right")], Const("Prop"))
+    print(f"And : {to_string(and_type)}")
+    calc.add_definition("And", and_type)
+
+    and_intro = Forall([Param(Const("Prop"), "left"), Param(Const("Prop"), "right"), Param(BoundVar(1)), Param(BoundVar(1))], App(Const("And"), [BoundVar(3), BoundVar(2)]))
+    print(f"And.intro : {to_string(and_intro)}")
+    calc.add_definition("And.intro", and_intro)
+
+    and_left = Forall([Param(Const("Prop"), "left"), Param(Const("Prop"), "right"), Param(App(Const("And"), [BoundVar(1), BoundVar(0)]))], BoundVar(2))
+    print(f"And.left : {to_string(and_left)}")
+
+    and_right = Forall([Param(Const("Prop"), "left"), Param(Const("Prop"), "right"), Param(App(Const("And"), [BoundVar(1), BoundVar(0)]))], BoundVar(1))
+    print(f"And.right : {to_string(and_right)}")
+
+    or_type = Forall([Param(Const("Prop"), "left"), Param(Const("Prop"), "right")], Const("Prop"))
+    print(f"Or : {to_string(or_type)}")
+    calc.add_definition("Or", or_type)
+
+    or_inl = Forall([Param(Const("Prop"), "left"), Param(Const("Prop"), "right"), Param(BoundVar(1))], App(Const("Or"), [BoundVar(2), BoundVar(1)]))
+    print(f"Or.inl : {to_string(or_inl)}")
+    calc.add_definition("Or.inl", or_inl)
+
+    or_inr = Forall([Param(Const("Prop"), "left"), Param(Const("Prop"), "right"), Param(BoundVar(0))], App(Const("Or"), [BoundVar(2), BoundVar(1)]))
+    print(f"Or.inr : {to_string(or_inr)}")
+    calc.add_definition("Or.inr", or_inr)
+
+    # def Or.rec : (a : Prop) -> (b : Prop) -> (motive : Or a b -> Prop) -> ((ha : a) -> motive (Or.inl a b ha)) -> ((hb : b) -> motive (Or.inr a b hb)) -> (h : Or a b) -> motive h
+    left = Param(Const("Prop"), "left")
+    right = Param(Const("Prop"), "right")
+    motive = Param(Forall([Param(App(Const("Or"), [BoundVar(1), BoundVar(0)]))], Const("Prop")), "motive")
+    hl = Param(Forall([Param(BoundVar(2), "hl")], App(BoundVar(1), [App(Const("Or.inl"), [BoundVar(3), BoundVar(2), BoundVar(0)])]))) 
+    hr = Param(Forall([Param(BoundVar(2), "hr")], App(BoundVar(2), [App(Const("Or.inr"), [BoundVar(4), BoundVar(3), BoundVar(0)])]))) 
+    hor = Param(App(Const("Or"), [BoundVar(4), BoundVar(3)]), "h")
+    body = App(BoundVar(3), [BoundVar(0)])
+    or_rec = Forall([left, right, motive, hl, hr, hor], body)
+    print(f"Or.rec : {to_string(or_rec)}")
+    calc.add_definition("Or.rec", or_rec)
+
+    # thm Or.elim : (a:Prop)->(b:Prop)->(c:Prop)->Or a b->(a->c)->(b->c)->c
+    # (a : Prop) => (b : Prop) => (c : Prop) => (h1 : Or a b) => (h2 : a -> c) => (h3 : b -> c) => Or.rec a b (Or a b => c) h2 h3 h1  
+    # Ensure all arguments are wrapped as Expr instances
+    or_elim = Lambda([
+        Param(Const("Prop"), "a"), 
+        Param(Const("Prop"), "b"), 
+        Param(Const("Prop"), "c"), 
+        Param(App(Const("Or"), [BoundVar(1), BoundVar(0)]), "h1"),
+        Param(App(Const("Or"), [BoundVar(3), BoundVar(1)]), "h2"), 
+        Param(App(Const("Or"), [BoundVar(4), BoundVar(2)]), "h3"),
+    ], App(
+        Const("Or.rec"), 
+        [
+            BoundVar(5), 
+            BoundVar(4), 
+            Lambda([Param(App(Const("Or"), [BoundVar(5), BoundVar(4)]), "motive")], BoundVar(4)), 
+            BoundVar(1), 
+            BoundVar(0), 
+            BoundVar(2)
+        ]
+    ))
+    or_elim_type = calc.infer_type(or_elim)
+    print(f"Or.elim : {to_string(or_elim_type)} := {to_string(or_elim)}")
+    calc.add_definition("Or.elim", or_elim_type, proof_expr=or_elim)

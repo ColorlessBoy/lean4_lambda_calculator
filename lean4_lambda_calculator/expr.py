@@ -42,7 +42,7 @@ class Const(Expr):
 
 class BoundVar(Expr):
     def __init__(self, index: int, name: str | None = None):
-        self.index = index
+        self.index = index # De Bruijn 索引
         self.name = name
 
     def __repr__(self):
@@ -82,7 +82,7 @@ class Forall(Expr):
             else:
                 left = f"{self.params[0]}"
         else:
-            left = f"({', '.join([str(v) for v in self.params])})"
+            left = f"({','.join([str(v) for v in self.params])})"
         if self.body.predicate < self.predicate:
             right = f"({self.body})"
         else:
@@ -107,7 +107,7 @@ class Lambda(Expr):
             else:
                 left = f"{self.params[0]}"
         else:
-            left = f"({', '.join([str(v) for v in self.params])})"
+            left = f"({','.join([str(v) for v in self.params])})"
         if self.body.predicate < self.predicate:
             right = f"({self.body})"
         else:
@@ -130,14 +130,8 @@ class App(Expr):
             left = f"({self.func})"
         else:
             left = f"{self.func}"
-        if len(self.args) == 1:
-            if self.args[0].predicate <= self.predicate:
-                right = f"({self.args[0]})"
-            else:
-                right = f"{self.args[0]}"
-        else:
-            right = f"({', '.join([str(a) for a in self.args])})"
-        return f"{left}{right}" if right.startswith("(") else f"{left} {right}"
+        right = f"({', '.join([str(a) for a in self.args])})"
+        return f"{left}{right}"
 
     @property
     def predicate(self) -> int:
@@ -182,3 +176,73 @@ def mk_normalize_forall(args: list[Param], body: Expr) -> Forall:
 def is_equivalent(expr1: Expr, expr2: Expr) -> bool:
     # 目前直接比较规范化后的表达式是否相等
     return normalize_expr(expr1) == normalize_expr(expr2)
+
+def to_string(expr: Expr, args: list[str]=[]) -> str:
+    if isinstance(expr, Sort):
+        if expr.level.is_zero():
+            return "Prop" # 特例：Sort 0 就是 Prop
+        if expr.level.is_one():
+            return "Type" # 特例：Sort 1 就是 Type
+        return str(expr)
+    if isinstance(expr, Const):
+        return str(expr)
+    if isinstance(expr, BoundVar):
+        if expr.index >= len(args):
+            return str(expr)
+        s = args[len(args) - 1 - expr.index] 
+        if s:
+            return s
+        return str(expr)
+    if isinstance(expr, Param):
+        if expr.name:
+            return f"{expr.name}:{to_string(expr.type, args)}"
+        return to_string(expr.type, args)
+    if isinstance(expr, Forall):
+        params = []
+        params_to_args = []
+        for v in expr.params:
+            param_str = to_string(v, args + params_to_args)
+            params.append(param_str)
+            param_to_arg_str = '' if v.name is None else v.name
+            params_to_args.append(param_to_arg_str)
+        if len(expr.params) == 1:
+            if expr.params[0].predicate <= expr.predicate:
+                left = f"({params[0]})->"
+            else:
+                left = f"{params[0]}->"
+        else:
+            left = f"({', '.join(params)})->"
+        right = to_string(expr.body, args + params_to_args)
+        if expr.body.predicate < expr.predicate:
+            right = f"({right})"
+        return f"{left}{right}" 
+    if isinstance(expr, Lambda):
+        params = []
+        params_to_args = []
+        for v in expr.params:
+            param_str = to_string(v, args + params_to_args)
+            params.append(param_str)
+            param_to_arg_str = '' if v.name is None else v.name
+            params_to_args.append(param_to_arg_str)
+        if len(expr.params) == 1:
+            if expr.params[0].predicate <= expr.predicate:
+                left = f"({params[0]})=>"
+            else:
+                left = f"{params[0]}=>"
+        else:
+            left = f"({', '.join(params)})=>"
+        right = to_string(expr.body, args + params_to_args)
+        if expr.body.predicate < expr.predicate:
+            right = f"({right})"
+        return f"{left}{right}"
+    if isinstance(expr, App):
+        if expr.func.predicate < expr.predicate:
+            func = f"({to_string(expr.func, args)})"
+        else:
+            func = to_string(expr.func, args)
+        args_str = [to_string(a, args) for a in expr.args]
+        right = f"({','.join(args_str)})"
+        return f"{func}{right}"
+    raise Exception(f"Unknown expression type: {type(expr)}")
+
+    
