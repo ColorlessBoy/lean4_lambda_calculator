@@ -173,6 +173,12 @@ def mk_normalize_forall(args: list[Param], body: Expr) -> Forall:
         body = body.body
     return Forall(args, body)
 
+def mk_normalize_lambda(args: list[Param], body: Expr) -> Lambda:
+    while isinstance(body, Lambda):
+        args = body.params + args
+        body = body.body
+    return Lambda(args, body)
+
 def is_equivalent(expr1: Expr, expr2: Expr) -> bool:
     # 目前直接比较规范化后的表达式是否相等
     return normalize_expr(expr1) == normalize_expr(expr2)
