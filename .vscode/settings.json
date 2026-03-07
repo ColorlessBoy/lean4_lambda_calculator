@@ -15,5 +15,7 @@
   "python.analysis.extraPaths": [
     "./lean4_lambda_calculator"
   ],
-  "python.envFile": "${workspaceFolder}/.env"
+  "python.envFile": "${workspaceFolder}/.env",
+  "python-envs.defaultEnvManager": "ms-python.python:system",
+  "python-envs.pythonProjects": []
 }

@@ -152,7 +152,7 @@ class Calculator:
             if norm_expr.index >= len(outer_arg_types):
                 raise ValueError(f"Bound variable index out of range: {norm_expr.index}")
             expr = outer_arg_types[-1 - norm_expr.index]
-            expr_offset = self._offset(expr, len(outer_arg_types)-1-norm_expr.index)
+            expr_offset = self._offset(expr, len(outer_arg_types)-norm_expr.index-1)
             return expr_offset
         elif isinstance(norm_expr, Param):    
             return norm_expr.type
@@ -323,6 +323,7 @@ if __name__ == "__main__":
             BoundVar(2)
         ]
     ))
+    print(f"Or.elim : {to_string(or_elim)}")
     or_elim_type = calc.infer_type(or_elim)
     print(f"Or.elim : {to_string(or_elim_type)} := {to_string(or_elim)}")
     calc.add_definition("Or.elim", or_elim_type, proof_expr=or_elim)
