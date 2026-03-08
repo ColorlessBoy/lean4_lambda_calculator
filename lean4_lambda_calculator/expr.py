@@ -11,7 +11,6 @@ class Expr:
     def __hash__(self):
         return hash(repr(self))  # 默认以 __repr__ 为基础计算哈希
     
-    @property
     def predicate(self) -> int:
         return -1
 
@@ -22,7 +21,6 @@ class Sort(Expr):
     def __repr__(self) -> str:
         return f"Sort({self.level})"
 
-    @property
     def predicate(self) -> int:
         return 100
 
@@ -36,7 +34,6 @@ class Const(Expr):
     def __repr__(self):
         return f"{self.label}"
 
-    @property
     def predicate(self) -> int:
         return 100
 
@@ -48,10 +45,9 @@ class BoundVar(Expr):
     def __repr__(self):
         return f"#{self.index}"
 
-    @property
     def predicate(self) -> int:
         return 100
-
+    
 class Param(Expr):
     def __init__(self, type: Expr, name: str | None = None):
         self.type = type
@@ -62,11 +58,19 @@ class Param(Expr):
             return f"{self.type}"
         return f"{self.name}:{self.type}"
     
-    @property
     def predicate(self) -> int:
         if self.name is None:
-            return self.type.predicate
+            return self.type.predicate()
         return 0
+
+class FVar(Expr):
+    def __init__(self, param: Param):
+        self.param = param
+    def __repr__(self) -> str:
+        return str(self.param)
+    
+    def predicate(self):
+        return self.param.predicate()
 
 class Forall(Expr):
     def __init__(self, params: list[Param], body: Expr):
@@ -77,19 +81,18 @@ class Forall(Expr):
     def __repr__(self) -> str:
         # Forall 是右结合的，所以左边表达式判断包含等号，右边表达式判断不包含等号
         if len(self.params) == 1:
-            if self.params[0].predicate <= self.predicate:
+            if self.params[0].predicate() <= self.predicate():
                 left = f"({self.params[0]})"
             else:
                 left = f"{self.params[0]}"
         else:
             left = f"({','.join([str(v) for v in self.params])})"
-        if self.body.predicate < self.predicate:
+        if self.body.predicate() < self.predicate():
             right = f"({self.body})"
         else:
             right = f"{self.body}"
         return f"{left}->{right}"
 
-    @property
     def predicate(self) -> int:
         return 1
 
@@ -102,19 +105,18 @@ class Lambda(Expr):
     def __repr__(self) -> str:
         # Lambda 是右结合的，所以左边表达式判断包含等号，右边表达式判断不包含等号
         if len(self.params) == 1:
-            if self.params[0].predicate <= self.predicate:
+            if self.params[0].predicate() <= self.predicate():
                 left = f"({self.params[0]})"
             else:
                 left = f"{self.params[0]}"
         else:
             left = f"({','.join([str(v) for v in self.params])})"
-        if self.body.predicate < self.predicate:
+        if self.body.predicate() < self.predicate():
             right = f"({self.body})"
         else:
             right = f"{self.body}"
         return f"{left}=>{right}"
 
-    @property
     def predicate(self) -> int:
         return 2
 
@@ -126,14 +128,13 @@ class App(Expr):
 
     def __repr__(self) -> str:
         # App 是左结合的，所以右边表达式判断包含等号，左边表达式判断不包含等号
-        if self.func.predicate < self.predicate:
+        if self.func.predicate() < self.predicate():
             left = f"({self.func})"
         else:
             left = f"{self.func}"
         right = f"({', '.join([str(a) for a in self.args])})"
         return f"{left}{right}"
 
-    @property
     def predicate(self) -> int:
         return 3
 
@@ -166,12 +167,12 @@ def normalize_expr(expr: Expr) -> Expr:
         return Sort(normalize_level(expr.level))
     return expr
 
-def mk_normalize_forall(args: list[Param], body: Expr) -> Forall:
+def mk_normalize_forall(params: list[Param], body: Expr) -> Forall:
     # 将嵌套的 Forall 展开
     while isinstance(body, Forall):
-        args = body.params + args
+        params = body.params + params
         body = body.body
-    return Forall(args, body)
+    return Forall(params, body)
 
 def mk_normalize_lambda(args: list[Param], body: Expr) -> Lambda:
     while isinstance(body, Lambda):
@@ -212,14 +213,14 @@ def to_string(expr: Expr, args: list[str]=[]) -> str:
             param_to_arg_str = '' if v.name is None else v.name
             params_to_args.append(param_to_arg_str)
         if len(expr.params) == 1:
-            if expr.params[0].predicate <= expr.predicate:
+            if expr.params[0].predicate() <= expr.predicate():
                 left = f"({params[0]})->"
             else:
                 left = f"{params[0]}->"
         else:
             left = f"({', '.join(params)})->"
         right = to_string(expr.body, args + params_to_args)
-        if expr.body.predicate < expr.predicate:
+        if expr.body.predicate() < expr.predicate():
             right = f"({right})"
         return f"{left}{right}" 
     if isinstance(expr, Lambda):
@@ -231,24 +232,26 @@ def to_string(expr: Expr, args: list[str]=[]) -> str:
             param_to_arg_str = '' if v.name is None else v.name
             params_to_args.append(param_to_arg_str)
         if len(expr.params) == 1:
-            if expr.params[0].predicate <= expr.predicate:
+            if expr.params[0].predicate() <= expr.predicate():
                 left = f"({params[0]})=>"
             else:
                 left = f"{params[0]}=>"
         else:
             left = f"({', '.join(params)})=>"
         right = to_string(expr.body, args + params_to_args)
-        if expr.body.predicate < expr.predicate:
+        if expr.body.predicate() < expr.predicate():
             right = f"({right})"
         return f"{left}{right}"
     if isinstance(expr, App):
-        if expr.func.predicate < expr.predicate:
+        if expr.func.predicate() < expr.predicate():
             func = f"({to_string(expr.func, args)})"
         else:
             func = to_string(expr.func, args)
         args_str = [to_string(a, args) for a in expr.args]
         right = f"({','.join(args_str)})"
         return f"{func}{right}"
+    if isinstance(expr, FVar):
+        return to_string(expr.param)
     raise Exception(f"Unknown expression type: {type(expr)}")
 
     
